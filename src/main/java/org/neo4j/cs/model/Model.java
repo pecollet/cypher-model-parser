@@ -1,4 +1,4 @@
-package xorg.neo4j.cs.model;
+package org.neo4j.cs.model;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

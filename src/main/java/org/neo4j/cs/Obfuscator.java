@@ -1,11 +1,7 @@
-package xorg.neo4j.cs;
+package org.neo4j.cs;
 
 import org.neo4j.cypherdsl.core.Literal;
-import org.neo4j.cypherdsl.core.StatementCatalog;
 import org.neo4j.cypherdsl.parser.CypherParser;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class Obfuscator {
     private static final String OBFUSCATED_LITERAL = "********"; // Replace with the desired obfuscated text

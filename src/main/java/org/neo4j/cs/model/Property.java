@@ -1,6 +1,5 @@
-package xorg.neo4j.cs.model;
+package org.neo4j.cs.model;
 
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.*;
 
 @RequiredArgsConstructor

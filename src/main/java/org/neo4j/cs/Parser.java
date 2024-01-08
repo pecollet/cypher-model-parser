@@ -1,4 +1,4 @@
-package xorg.neo4j.cs;
+package org.neo4j.cs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -9,9 +9,9 @@ import org.neo4j.cypherdsl.core.StatementCatalog.Token;
 import org.neo4j.cypherdsl.parser.CyperDslParseException;
 import org.neo4j.cypherdsl.parser.CypherParser;
 import org.neo4j.cypherdsl.parser.UnsupportedCypherException;
-import xorg.neo4j.cs.model.Model;
-import xorg.neo4j.cs.model.NodeLabel;
-import xorg.neo4j.cs.model.RelationshipType;
+import org.neo4j.cs.model.Model;
+import org.neo4j.cs.model.NodeLabel;
+import org.neo4j.cs.model.RelationshipType;
 
 import java.util.*;
 import java.util.stream.Collectors;
