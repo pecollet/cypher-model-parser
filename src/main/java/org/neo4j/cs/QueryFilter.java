@@ -19,6 +19,7 @@ public class QueryFilter {
                                 "")
                            .replaceAll("^(PROFILE|profile)\s+","")
                 )
+                //TODO deal with comments mid-query (Encountered "<EOF>")
                 .collect(Collectors.toList());
     }
 }
