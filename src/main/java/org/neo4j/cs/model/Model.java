@@ -105,7 +105,7 @@ public class Model {
             if (imageFormat != null ) {
                 //generate Image
                 String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
-                plantUmlStr.replaceAll("@startuml", "@startuml\n!pragma layout smetana");
+                plantUmlStr.replaceAll("@startuml", "@startuml\n!pragma layout smetana\nscale max 900 width");
                 OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
                 FileFormatOption option = new FileFormatOption(imageFormat);
                 String desc = reader.outputImage(os, option).getDescription();
