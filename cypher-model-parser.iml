@@ -20,5 +20,6 @@
     <orderEntry type="library" name="Maven: com.fasterxml.woodstox:woodstox-core:6.5.1" level="project" />
     <orderEntry type="library" scope="PROVIDED" name="Maven: org.projectlombok:lombok:1.18.30" level="project" />
     <orderEntry type="library" name="Maven: net.sourceforge.plantuml:plantuml:1.2023.12" level="project" />
+    <orderEntry type="library" name="Maven: info.picocli:picocli:4.7.5" level="project" />
   </component>
 </module>

@@ -4,7 +4,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
+import net.sourceforge.plantuml.FileFormat;
+import net.sourceforge.plantuml.FileFormatOption;
+import net.sourceforge.plantuml.SourceStringReader;
 
+import java.io.*;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -87,5 +91,29 @@ public class Model {
 
         String suffix = "\n@enduml";
         return prefix + nodeStatements + "\n" + relStatements + suffix;
+    }
+
+    public void savePlantUml(String filePath, FileFormat imageFormat) {
+        String plantUmlStr = this.asPlantUml();
+        SourceStringReader reader = new SourceStringReader(plantUmlStr);
+        try {
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
+            writer.write(plantUmlStr);
+            writer.close();
+            System.out.println("plantUML text exported.");
+
+            if (imageFormat != null ) {
+                //generate Image
+                String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
+                plantUmlStr.replaceAll("@startuml", "@startuml\n!pragma layout smetana");
+                OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
+                FileFormatOption option = new FileFormatOption(imageFormat);
+                String desc = reader.outputImage(os, option).getDescription();
+                System.out.println("Image output: " + desc);
+                os.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
