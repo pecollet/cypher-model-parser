@@ -2,6 +2,8 @@ package org.neo4j.cs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import net.sourceforge.plantuml.FileFormat;
+import net.sourceforge.plantuml.FileFormatOption;
 import net.sourceforge.plantuml.SourceStringReader;
 import org.neo4j.cypherdsl.core.StatementCatalog.Property;
 
@@ -59,7 +61,7 @@ public class Parser {
 //        }
         System.out.println(fullModel);
         //saveJson(fullModel, "target/model.json");
-        savePlantUml(fullModel, "target/model.puml");
+        savePlantUml(fullModel, "target/model.puml", FileFormat.SVG);
     }
 
     private static ArrayList<String> readQueriesFromFile(String filePath) {
@@ -170,16 +172,13 @@ public class Parser {
         System.out.println("Successfully written to "+ filePath);
     }
 
-    private static void savePlantUml(Model m, String filePath) {
+    private static void savePlantUml(Model m, String filePath, FileFormat imageFormat) {
         String plantUmlStr = m.asPlantUml();
         System.out.println(plantUmlStr);
         SourceStringReader reader = new SourceStringReader(plantUmlStr);
 
         try {
-            //generate PNG directly? requires DOT
-//            OutputStream png = new FileOutputStream(new File(filePath));
-//            String desc = reader.outputImage(png).getDescription();
-//            System.out.println("savePlantUml: " + desc);
+
 
             //export the plantUML syntax
             // that can be turned into a PNG via a plantUML server (public server plantuml.com by default)
@@ -189,6 +188,18 @@ public class Parser {
             BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
             writer.write(plantUmlStr);
             writer.close();
+
+
+            if (imageFormat != null ) {
+                //generate Image
+                String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
+                plantUmlStr.replaceAll("@startuml", "@startuml\n!pragma layout smetana");
+                OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
+                FileFormatOption option = new FileFormatOption(imageFormat);
+                String desc = reader.outputImage(os, option).getDescription();
+                System.out.println("Image output: " + desc);
+                os.close();
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
