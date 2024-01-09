@@ -106,12 +106,12 @@ public class QueryParser {
             queryModel.setRelationshipTypes(relationshipTypes);
         } catch (CyperDslParseException e) {
             String cause = e.getCause().toString();
-            System.out.println("CyperDslParseException: " +cause.substring(1, Math.min(110, cause.length())));
+            System.out.println("#####[CyperDslParseException] " +cause.substring(0, Math.min(110, cause.length())));
             System.out.println(query);
             this.errors+=1;
         } catch (UnsupportedCypherException e) {
             String cause = e.getCause().toString();
-            System.out.println("UnsupportedCypherException: " +cause.substring(1, Math.min(110, cause.length())));
+            System.out.println("#####   [UnsupportedCypherException] " +cause.substring(0, Math.min(110, cause.length())));
             System.out.println(query);
             this.errors+=1;
         } catch (Exception e) {
