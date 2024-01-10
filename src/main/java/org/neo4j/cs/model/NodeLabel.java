@@ -19,7 +19,15 @@ public class NodeLabel {
     Set<Property> properties = new HashSet<>();
 
     public NodeLabel addProperty(String key) {
-        this.properties.add(new Property(key));
+        this.addProperty(new Property(key));
+        return this;
+    }
+    public NodeLabel addProperty(Property property) {
+        this.properties.add(property);
+        return this;
+    }
+    public NodeLabel addProperty(String key, String type) {
+        this.addProperty(new Property(key, type));
         return this;
     }
 

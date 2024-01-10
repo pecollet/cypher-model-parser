@@ -2,6 +2,7 @@ package org.neo4j.cs.model;
 
 import lombok.*;
 
+@AllArgsConstructor
 @RequiredArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString

@@ -40,7 +40,6 @@ public class QueryFilter {
                            .replaceAll("(?i)"+ "^PROFILE","")
                            .trim()
                 )
-                //TODO deal with comments mid-query (Encountered "<EOF>")
                 .collect(Collectors.toList());
     }
 }

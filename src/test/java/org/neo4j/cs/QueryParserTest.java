@@ -36,5 +36,9 @@ public class QueryParserTest {
         assertEquals(m.getRelationshipTypes().keySet(), expectedRelTypes);
         assertEquals(m.getNodeLabels().get("Thing").getProperties(), expectedProperties);
     }
-
+    @Test
+    void shouldParseQuery() {
+        Model m = new QueryParser().parseQuery("MATCH (:Left)-[:HAS]-(:Right) RETURN *");
+        System.out.println(m);
+    }
 }

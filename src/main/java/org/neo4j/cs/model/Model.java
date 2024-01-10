@@ -72,7 +72,7 @@ public class Model {
                                     Set<String> allUndirNodeLabels = new HashSet<>();
                                     allUndirNodeLabels.addAll(value1.getUndirectedNodeLabels());
                                     allUndirNodeLabels.addAll(value2.getUndirectedNodeLabels());
-                                    mergedRelationshipType.setUndirectedNodeLabels(allTgtNodeLabels);
+                                    mergedRelationshipType.setUndirectedNodeLabels(allUndirNodeLabels);
                                     return mergedRelationshipType;
                                 }
                         )
@@ -81,7 +81,7 @@ public class Model {
     }
 
     public String asPlantUml() {
-        String prefix = "@startuml\nset namespaceSeparator none\n";
+        String prefix = "@startuml\nset namespaceSeparator none\nhide empty members\n";
         String nodeStatements = this.getNodeLabels().entrySet().stream()
                 .map(e -> e.getValue().asPlantUml())
                 .collect(Collectors.joining("\n"));

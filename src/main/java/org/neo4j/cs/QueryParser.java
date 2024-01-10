@@ -9,10 +9,7 @@ import org.neo4j.cypherdsl.parser.CyperDslParseException;
 import org.neo4j.cypherdsl.parser.CypherParser;
 import org.neo4j.cypherdsl.parser.UnsupportedCypherException;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.neo4j.cypherdsl.core.StatementCatalog.Token.Type.NODE_LABEL;
@@ -33,30 +30,17 @@ public class QueryParser {
         }
         float errorRate = 100 * this.errors / queries.size();
         System.out.println("Parsing complete. Errors: "+this.errors+" ("+errorRate+"%)");
-//        System.out.println(fullModel);
-        return fullModel;
 
-        //TODO : cleanup undirectedNodeLabels sets if labels are found in source or target sets
-//        for (Map.Entry<String, RelationshipType> rtEntry: fullModel.getRelationshipTypes().entrySet()) {
-//            if (rtEntry.getKey().equals("HAS_SWAD")) {
-//                RelationshipType rt = rtEntry.getValue();
-//                System.out.println(rt);
-//                Set<String> relTypesWithKnowSource = rt.getSourceNodeLabels();
-//                Set<String> relTypesWithKnowTarget = rt.getTargetNodeLabels();
-////                rt.getUndirectedNodeLabels().removeAll(relTypesWithKnowSource);
-//                Set<String> tmp = rt.getUndirectedNodeLabels();
-//                System.out.println("tmp="+tmp);
-//                System.out.println("relTypesWithKnowTarget="+relTypesWithKnowTarget);
-//                System.out.println("rt="+rt);
-//                tmp.removeAll(relTypesWithKnowTarget);
-//                System.out.println("tmp="+tmp);
-//                System.out.println("rt="+rt);
-//                System.out.println("relTypesWithKnowTarget="+relTypesWithKnowTarget);
-//                rt.setTargetNodeLabels(relTypesWithKnowTarget);
-//                rt.setUndirectedNodeLabels(tmp);
-//                System.out.println("rt="+rt);
-//            }
-//        }
+        //cleanup undirectedNodeLabels sets if labels are found in source or target sets
+        for (Map.Entry<String, RelationshipType> rtEntry: fullModel.getRelationshipTypes().entrySet()) {
+            RelationshipType rt = rtEntry.getValue();
+            if (rt.getUndirectedNodeLabels().size() >0) {
+                rt.getUndirectedNodeLabels().removeAll(rt.getSourceNodeLabels());
+                rt.getUndirectedNodeLabels().removeAll(rt.getTargetNodeLabels());
+            }
+        }
+        //        System.out.println(fullModel);
+        return fullModel;
     }
 
     public Model parseQuery(String query) {
@@ -64,16 +48,11 @@ public class QueryParser {
 //        System.out.println("QUERY = " +query);
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
-
         //parse
         try {
             var statement = CypherParser.parse(query);
             var catalog = statement.getCatalog();
 
-            //node labels : populate a map of nodeLabels (w/o properties)
-            for (StatementCatalog.Token label : catalog.getNodeLabels()) {
-                nodeLabels.put(label.value(), new NodeLabel(label.value()));
-            }
 
             //relationshipTypes : populate a map (w/o properties)
             for (StatementCatalog.Token type : catalog.getRelationshipTypes()) {
@@ -85,6 +64,16 @@ public class QueryParser {
                 rt.setSourceNodeLabels( new HashSet<>(sourceNodeLabels) );
                 rt.setTargetNodeLabels( new HashSet<>(targetNodeLabels) );
                 relationshipTypes.put(type.value(), rt);
+            }
+
+            //node labels : populate a map of nodeLabels (w/o properties)
+            for (StatementCatalog.Token label : catalog.getNodeLabels()) {
+                nodeLabels.put(label.value(), new NodeLabel(label.value()));
+//                System.out.println(label.value()+" => "+catalog.getUndirectedRelations(label));
+                for  (StatementCatalog.Token undirRelType : catalog.getUndirectedRelations(label)) {
+
+                    relationshipTypes.get(undirRelType.value()).addUndirectedNodelabel(label.value());
+                }
             }
 
             //fill in the properties
@@ -121,6 +110,7 @@ public class QueryParser {
             System.out.println(query);
             this.errors+=1;
         }
+//        System.out.println(queryModel);
         return queryModel;
     }
 }
