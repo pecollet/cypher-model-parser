@@ -31,7 +31,8 @@ public class QueryParser {
         for(String q : queries) {
             fullModel.add(parseQuery(q));
         }
-        System.out.println("Parsing complete. Errors: "+this.errors);
+        float errorRate = 100 * this.errors / queries.size();
+        System.out.println("Parsing complete. Errors: "+this.errors+" ("+errorRate+"%)");
 //        System.out.println(fullModel);
         return fullModel;
 

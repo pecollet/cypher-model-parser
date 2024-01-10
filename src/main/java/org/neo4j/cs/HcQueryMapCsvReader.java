@@ -30,7 +30,7 @@ public class HcQueryMapCsvReader implements QueryFileReader {
                     value = value.substring(1, value.length() - 1); // Remove opening and closing double quotes
                 }
                 //HTML spacing introduced by the HC
-                queries.add( value .replaceAll("<br>", " ") );
+                queries.add( value .replaceAll("<br>", "\n") );
             }
         } catch (IOException e) {
             e.printStackTrace();
