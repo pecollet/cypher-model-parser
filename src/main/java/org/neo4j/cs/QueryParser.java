@@ -32,6 +32,7 @@ public class QueryParser {
             fullModel.add(parseQuery(q));
         }
         System.out.println("Parsing complete. Errors: "+this.errors);
+//        System.out.println(fullModel);
         return fullModel;
 
         //TODO : cleanup undirectedNodeLabels sets if labels are found in source or target sets

@@ -81,7 +81,7 @@ public class Model {
     }
 
     public String asPlantUml() {
-        String prefix = "@startuml\n";
+        String prefix = "@startuml\nset namespaceSeparator none\n";
         String nodeStatements = this.getNodeLabels().entrySet().stream()
                 .map(e -> e.getValue().asPlantUml())
                 .collect(Collectors.joining("\n"));

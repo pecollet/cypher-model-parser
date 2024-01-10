@@ -33,7 +33,7 @@ public class RelationshipType {
     }
 
     public String asPlantUml() {
-        String prefix = '"'+"class"+'"'+" " +this.type+" << (R,orange) >> {\n";
+        String prefix = "class "+ '"' +this.type+'"'+" << (R,orange) >> {\n";
         String properties = this.getProperties().stream()
                 .map(p -> "    " + p.asPlantUml())
                 .collect(Collectors.joining(" "));
@@ -45,6 +45,9 @@ public class RelationshipType {
         String ends = this.targetNodeLabels.stream()
                 .map ( lbl -> '"'+ this.type+ '"' + " --> " +'"'+lbl+'"' )
                 .collect(Collectors.joining("\n"));
-        return prefix + properties + suffix + "\n" + starts + "\n" + ends;
+        String undirecteds = this.undirectedNodeLabels.stream()
+                .map ( lbl -> '"'+ this.type+ '"' + " .. " +'"'+lbl+'"' )
+                .collect(Collectors.joining("\n"));
+        return prefix + properties + suffix + "\n" + starts + "\n" + ends + "\n" + undirecteds;
     }
 }
