@@ -24,7 +24,7 @@ public class NodeLabel {
     }
 
     public String asPlantUml() {
-        String prefix = "class "+this.label+" << (N,lightblue) >> {\n";
+        String prefix = "class "+'"'+this.label+'"'+" << (N,lightblue) >> {\n";
         String properties = this.getProperties().stream()
                 .map(p -> "    " + p.asPlantUml())
                 .collect(Collectors.joining("\n"));
