@@ -40,10 +40,10 @@ public class RelationshipType {
         String suffix = "\n}";
 
         String starts = this.sourceNodeLabels.stream()
-                .map ( lbl -> lbl + " -- " +'"'+ this.type+ '"')
+                .map ( lbl -> '"'+lbl+'"'+ " -- " +'"'+ this.type+ '"')
                 .collect(Collectors.joining("\n"));
         String ends = this.targetNodeLabels.stream()
-                .map ( lbl -> '"'+ this.type+ '"' + " --> " + lbl )
+                .map ( lbl -> '"'+ this.type+ '"' + " --> " +'"'+lbl+'"' )
                 .collect(Collectors.joining("\n"));
         return prefix + properties + suffix + "\n" + starts + "\n" + ends;
     }
