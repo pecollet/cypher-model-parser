@@ -12,6 +12,7 @@ public class QueryFilter {
                 .filter( q ->
                            !q.startsWith("EXPLAIN")
                         && !q.startsWith("SHOW ")
+                        && !q.contains("This query is just used to load the cypher compiler during warmup. Please ignore")
                 )
                 //CYPHER modifiers are not supported by cypherDSL, so remove them
                 .map(q -> q.replaceAll(
