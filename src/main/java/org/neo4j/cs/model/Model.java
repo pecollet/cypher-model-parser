@@ -80,6 +80,20 @@ public class Model {
         return this;
     }
 
+    public void filterIsolatedRelationships() {
+        List<String> keys_to_filter = new ArrayList<>();
+        for (Map.Entry<String, RelationshipType> rtEntry: this.getRelationshipTypes().entrySet()) {
+            RelationshipType rt = rtEntry.getValue();
+            if (rt.getUndirectedNodeLabels().size() + rt.getSourceNodeLabels().size() + rt.getTargetNodeLabels().size() == 0) {
+                keys_to_filter.add(rt.type);
+
+            }
+        }
+        for (String key: keys_to_filter) {
+            this.relationshipTypes.remove(key);
+        }
+    }
+
     public String asPlantUml() {
         String prefix = "@startuml\nset namespaceSeparator none\nhide empty members\n";
         String nodeStatements = this.getNodeLabels().entrySet().stream()

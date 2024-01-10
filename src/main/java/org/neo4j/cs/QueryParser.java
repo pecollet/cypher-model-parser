@@ -52,7 +52,7 @@ public class QueryParser {
         try {
             var statement = CypherParser.parse(query);
             var catalog = statement.getCatalog();
-
+            
 
             //relationshipTypes : populate a map (w/o properties)
             for (StatementCatalog.Token type : catalog.getRelationshipTypes()) {
