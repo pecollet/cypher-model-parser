@@ -39,7 +39,7 @@ public class Parser {
         Model fullModel = parser.parseQueries(queries);
         //fullModel.filterIsolatedRelationships();
 
-        //saveJson(fullModel, "target/model.json");
+        saveJson(fullModel, outputDir+ "/model.json");
         fullModel.savePlantUml(outputDir+ "/model.puml", FileFormat.SVG);
     }
 

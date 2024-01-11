@@ -1,2 +1,5 @@
 target/
 .idea/
+model.puml
+model.puml.svg
+model.json

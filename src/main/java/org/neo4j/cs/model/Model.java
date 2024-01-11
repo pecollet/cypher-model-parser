@@ -95,7 +95,11 @@ public class Model {
     }
 
     public String asPlantUml() {
-        String prefix = "@startuml\nset namespaceSeparator none\nhide empty members\n";
+        String prefix = "@startuml\n" +
+                "!pragma layout smetana\n" +
+                "scale max 900 width\n" +
+                "set namespaceSeparator none\n" +
+                "hide empty members\n";
         String nodeStatements = this.getNodeLabels().entrySet().stream()
                 .map(e -> e.getValue().asPlantUml())
                 .collect(Collectors.joining("\n"));
@@ -119,7 +123,6 @@ public class Model {
             if (imageFormat != null ) {
                 //generate Image
                 String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
-                plantUmlStr.replaceAll("@startuml", "@startuml\n!pragma layout smetana\nscale max 900 width");
                 OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
                 FileFormatOption option = new FileFormatOption(imageFormat);
                 String desc = reader.outputImage(os, option).getDescription();
