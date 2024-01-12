@@ -9,14 +9,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @AllArgsConstructor
 @ToString
-public class RelationshipType {
+public class RelationshipType  extends EntityType {
     @NonNull
     @Getter
     String type;
-
-    @Setter
-    @Getter
-    Set<Property> properties = new HashSet<>();
 
     @Getter
     @Setter
@@ -33,19 +29,6 @@ public class RelationshipType {
 
     public RelationshipType addUndirectedNodelabel(String label) {
         this.undirectedNodeLabels.add(label);
-        return this;
-    }
-
-    public RelationshipType addProperty(String key) {
-        this.properties.add(new Property(key));
-        return this;
-    }
-    public RelationshipType addProperty(Property property) {
-        this.properties.add(property);
-        return this;
-    }
-    public RelationshipType addProperty(String key, String type) {
-        this.addProperty(new Property(key, type));
         return this;
     }
 

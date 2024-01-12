@@ -2,6 +2,7 @@ package org.neo4j.cs;
 
 import lombok.Getter;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -16,10 +17,10 @@ public class HcQueryMapCsvReader implements QueryFileReader {
         this.filter = filter;
     }
 
-    public List<String> read(String filePath) {
+    public List<String> read(File file) {
         ArrayList<String> queries = new ArrayList<>();
 
-        try (FileInputStream fis = new FileInputStream(filePath)) {
+        try (FileInputStream fis = new FileInputStream(file)) {
             Properties properties = new Properties();
             properties.load(fis);
 

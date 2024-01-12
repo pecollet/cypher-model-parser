@@ -7,28 +7,15 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-@AllArgsConstructor
 @ToString
-public class NodeLabel {
+public class NodeLabel extends EntityType {
     @NonNull
     @Getter
     String label;
 
-    @Setter
-    @Getter
-    Set<Property> properties = new HashSet<>();
-
-    public NodeLabel addProperty(String key) {
-        this.addProperty(new Property(key));
-        return this;
-    }
-    public NodeLabel addProperty(Property property) {
-        this.properties.add(property);
-        return this;
-    }
-    public NodeLabel addProperty(String key, String type) {
-        this.addProperty(new Property(key, type));
-        return this;
+    public NodeLabel(String label, Set<Property> properties) {
+        this(label);
+        this.setProperties(properties);
     }
 
     public String asPlantUml() {

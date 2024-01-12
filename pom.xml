@@ -6,7 +6,11 @@
 
     <groupId>org.neo4j.cs</groupId>
     <artifactId>cypher-model-parser</artifactId>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
+    <organization>
+        <name>Neo4j</name>
+        <url>https://neo4j.com</url>
+    </organization>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -88,6 +92,7 @@
                     <archive>
                         <manifest>
                             <mainClass>org.neo4j.cs.Parser</mainClass>
+                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
                         </manifest>
                     </archive>
                 </configuration>

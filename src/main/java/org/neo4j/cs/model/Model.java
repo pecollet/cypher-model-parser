@@ -34,6 +34,7 @@ public class Model {
                         Map.Entry::getKey,
                         Map.Entry::getValue,
                         (value1, value2) -> {
+                            //TODO : keep typed properties ahead of untyped ones
                             Set<Property> allProperties = new HashSet<>();
                             allProperties.addAll(value1.getProperties());
                             allProperties.addAll(value2.getProperties());
@@ -95,11 +96,7 @@ public class Model {
     }
 
     public String asPlantUml() {
-        String prefix = "@startuml\n" +
-                "!pragma layout smetana\n" +
-                "scale max 900 width\n" +
-                "set namespaceSeparator none\n" +
-                "hide empty members\n";
+
         String nodeStatements = this.getNodeLabels().entrySet().stream()
                 .map(e -> e.getValue().asPlantUml())
                 .collect(Collectors.joining("\n"));
@@ -107,30 +104,7 @@ public class Model {
                 .map(e -> e.getValue().asPlantUml())
                 .collect(Collectors.joining("\n"));
 
-        String suffix = "\n@enduml";
-        return prefix + nodeStatements + "\n" + relStatements + suffix;
+        return nodeStatements + "\n" + relStatements;
     }
 
-    public void savePlantUml(String filePath, FileFormat imageFormat) {
-        String plantUmlStr = this.asPlantUml();
-        SourceStringReader reader = new SourceStringReader(plantUmlStr);
-        try {
-            BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
-            writer.write(plantUmlStr);
-            writer.close();
-            System.out.println("plantUML text exported.");
-
-            if (imageFormat != null ) {
-                //generate Image
-                String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
-                OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
-                FileFormatOption option = new FileFormatOption(imageFormat);
-                String desc = reader.outputImage(os, option).getDescription();
-                System.out.println("Image output: " + desc);
-                os.close();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

@@ -3,44 +3,81 @@ package org.neo4j.cs;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import net.sourceforge.plantuml.FileFormat;
+import net.sourceforge.plantuml.FileFormatOption;
+import net.sourceforge.plantuml.SourceStringReader;
 import org.neo4j.cs.model.Model;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Option;
 
+import java.net.URI;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.io.*;
+import java.util.concurrent.Callable;
 
 
-public class Parser {
+@Command(name = "parse-model", mixinStandardHelpOptions = true, versionProvider = ManifestVersionProvider.class,
+        description = "Parses cypher queries in <queriesFile> and generates a PlantUML class diagram.")
+public class Parser implements Callable<Integer> {
 
-    public static void main(String... a) {
-        String queriesFilePath;
-        if (a.length == 0) {
-            System.out.println("Expecting at least a parameter : queriesFilePath");
-            return;
-        } else {
-            queriesFilePath = a[0];
-            System.out.println("Reading from file: "+queriesFilePath);
+    private enum LayoutEngine { DOT, SMETANA }
+
+    @Parameters(index = "0", description = "The file containing the queries")
+    private java.io.File queriesFile;
+
+    @Option(names = { "-o", "--output-dir" }, paramLabel = "OUTPUT-DIR", description = "The directory where the output files are written")
+    private Path outputDir;
+
+    @Option(names = { "-l", "--layout-engine" }, paramLabel = "layout-engine", defaultValue = "DOT", description = "The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. Defaults to SMETANA. DOT requires the presence of the graphviz module on the system.")
+    private LayoutEngine layoutEngine;
+
+    @Option(names = { "-j", "--json" }, description = "Export JSON model.")
+    private boolean exportJson;
+
+
+    @Override
+    public Integer call() throws Exception {
+        if (!queriesFile.isFile() || !queriesFile.canRead()) {
+            System.out.println("File not found, or file not readable : "+queriesFile);
+            return 1;
         }
-        String outputDir;
-        if (a.length == 1) {
-            outputDir = ".";
+        if (outputDir == null) {
+            outputDir=Path.of(System.getProperty("user.dir"));
         } else {
-            outputDir = a[1];
+            if (!Files.exists(outputDir) || !Files.isDirectory(outputDir)) {
+                System.out.println("Directory does not exist or not a directory : "+outputDir);
+                return 2;
+            }
         }
-        Path outputDirAbsolutePath = Paths.get(outputDir).toAbsolutePath();
-        System.out.println("Output written to directory: "+outputDirAbsolutePath);
+        if (!Files.isWritable(outputDir)) {
+            System.out.println("Directory is not writable : "+outputDir);
+            return 3;
+        }
+
+       System.out.println("Output written to directory: "+outputDir.toAbsolutePath());
 
         QueryFileReader queryReader = new HcQueryMapCsvReader(new QueryFilter());
-        List<String> queries = queryReader.read(queriesFilePath);
+        List<String> queries = queryReader.read(queriesFile);
         System.out.println("Number of queries to parse: " + queries.size());
 
         QueryParser parser = new QueryParser();
         Model fullModel = parser.parseQueries(queries);
         //fullModel.filterIsolatedRelationships();
 
-        saveJson(fullModel, outputDir+ "/model.json");
-        fullModel.savePlantUml(outputDir+ "/model.puml", FileFormat.SVG);
+        if (exportJson) {
+            saveJson(fullModel, outputDir + "/model.json");
+        }
+        savePlantUml(fullModel, outputDir+ "/model.puml", FileFormat.SVG, layoutEngine);
+        return 0;
+    }
+
+    public static void main(String... args) {
+        int exitCode = new CommandLine(new Parser()).execute(args);
+        System.exit(exitCode);
     }
 
 
@@ -52,8 +89,40 @@ public class Parser {
         } catch (Exception e) {
             System.out.println("Failed to write JSON : " +e.toString());
         }
-        System.out.println("Successfully written to "+ filePath);
+        System.out.println("Successfully written model to "+ filePath);
     }
 
+    public void savePlantUml(Model m, String filePath, FileFormat imageFormat, LayoutEngine engine) {
+        String prefix = "@startuml\n";
+        String layoutCommand = "";
+        if (engine == LayoutEngine.SMETANA) layoutCommand = "!pragma layout smetana\n";
+        String stylingCommands =  "scale max 900 width\n" +
+                "set namespaceSeparator none\n" +
+                "hide empty members\n";
+        String suffix = "\n@enduml";
+        String plantUmlStr = prefix + layoutCommand + stylingCommands + m.asPlantUml() + suffix;
+
+        SourceStringReader reader = new SourceStringReader(plantUmlStr);
+        try {
+            System.out.println("Saving to plantUML text format...");
+            BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
+            writer.write(plantUmlStr);
+            writer.close();
+            System.out.println("Successfully written class diagram to "+ filePath);
+
+            if (imageFormat != null ) {
+                //generate Image
+                String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
+                System.out.println("Saving to "+imageFormat.name()+"...");
+                OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
+                FileFormatOption option = new FileFormatOption(imageFormat);
+                String desc = reader.outputImage(os, option).getDescription();
+                System.out.println("Successfully written "+imageFormat.name()+" to "+ filePath + imageFileSuffix + " "+ desc);
+                os.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
 
 }

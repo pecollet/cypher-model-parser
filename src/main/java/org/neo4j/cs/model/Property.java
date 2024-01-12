@@ -11,10 +11,26 @@ public class Property {
     @EqualsAndHashCode.Include
     @Getter
     String key;
+
+    @EqualsAndHashCode.Include
+    @Getter
+    @Setter
     String type;
 
+    @EqualsAndHashCode.Include
+    @Getter
+    @Setter
+    boolean indexed;
+
+    public Property(String key, String type) {
+        this(key);
+        this.type = type;
+    }
+
     public String asPlantUml() {
-        if (this.type != null) return this.type + " " + this.key;
-        else return this.key;
+        String plantUml=this.key;
+        if (this.type != null) plantUml = this.type + " " + plantUml;
+        if (this.indexed) plantUml = "{static} " + plantUml;
+        return plantUml;
     }
 }
