@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @AllArgsConstructor
-@ToString
+@ToString(callSuper=true)
 public class RelationshipType  extends EntityType {
     @NonNull
     @Getter

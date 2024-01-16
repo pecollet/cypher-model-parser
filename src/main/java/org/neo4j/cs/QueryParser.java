@@ -42,14 +42,22 @@ public class QueryParser {
                 rt.getUndirectedNodeLabels().removeAll(rt.getSourceNodeLabels());
                 rt.getUndirectedNodeLabels().removeAll(rt.getTargetNodeLabels());
             }
+
+            rt.dedupeProperties();
         }
-        //        System.out.println(fullModel);
+        System.out.println(fullModel);
+        //dedupe properties
+        for (Map.Entry<String, NodeLabel> nlEntry: fullModel.getNodeLabels().entrySet()) {
+            NodeLabel nl = nlEntry.getValue();
+            nl.dedupeProperties();
+        }
+//        System.out.println(fullModel);
         return fullModel;
     }
 
     public Model parseQuery(String query) {
         Model queryModel = new Model();
-//        System.out.println("QUERY = " +query);
+//        System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
         //parse
@@ -106,8 +114,8 @@ public class QueryParser {
                 }
             }
 
-            for (Index index : parseIndex(query)) {
-                EntityType entity;
+//            for (Index index : parseIndex(query)) {
+//                EntityType entity;
 //                if (index.getNodeLabel() != null) {
 //                    //TODO : find label in nodeLabels or create it
 //                    for (NodeLabel nodeLabel : nodeLabels) {
@@ -132,7 +140,7 @@ public class QueryParser {
 //                        entity.addProperty(newProperty);
 //                    }
 //                }
-            }
+//            }
 
             queryModel.setNodeLabels(nodeLabels);
             queryModel.setRelationshipTypes(relationshipTypes);
@@ -155,7 +163,7 @@ public class QueryParser {
             );
             this.errors+=1;
         } catch (NullPointerException npe) {
-            System.out.println(npe);
+            System.out.println("### [NullPointerException] " + npe);
         } catch (Exception e) {
             System.out.println("### [Exception] " + e + " : " +shortenQueryForLogging(query) );
             this.errors+=1;
@@ -164,62 +172,89 @@ public class QueryParser {
         return queryModel;
     }
 
-    private Set<Index> parseIndex(String query) {
-        Set<Index> indices = new HashSet<>();
-        //TODO : work on regex
-        Pattern pattern = Pattern.compile("CREATE INDEX FOR \\((\\w)?:(\\w)\\) ON \\((\\w)?.(\\w)\\)", Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(query);
-        boolean matchFound = matcher.find();
-        if(matchFound) {
-            String entity = matcher.group(1);
-            String property = matcher.group(3);
-            //TODO : figure out node or rel
-            Index i = new Index(entity, property, Index.EntityType.NODE);
-            indices.add(i);
-        }
-        return indices;
-    }
+//    private Set<Index> parseIndex(String query) {
+//        Set<Index> indices = new HashSet<>();
+//        //TODO : work on regex
+//        Pattern pattern = Pattern.compile("CREATE INDEX FOR \\((\\w)?:(\\w)\\) ON \\((\\w)?.(\\w)\\)", Pattern.CASE_INSENSITIVE);
+//        Matcher matcher = pattern.matcher(query);
+//        boolean matchFound = matcher.find();
+//        if(matchFound) {
+//            String entity = matcher.group(1);
+//            String property = matcher.group(3);
+//            System.out.println("Index : "+entity+"."+property);
+//            //TODO : figure out node or rel
+//            Index i = new Index(entity, property, Index.EntityType.NODE);
+//            indices.add(i);
+//        }
+//        return indices;
+//    }
+
     private String shortenQueryForLogging(String query) {
         return query.replaceAll("\n", " ").substring(0, Math.min(100, query.length()));
     }
 
     private String getPropertyType(Property prop, StatementCatalog catalog) {
-//        System.out.println(prop.name());
+//        System.out.println("   "+prop.name());
         String propertyType="?";
         Collection<PropertyFilter> filters = catalog.getFilters(prop);
         if (filters != null) {
-//            System.out.println(filters);
+            System.out.println("      "+filters);
             //use filter expressions to try to find out the property types
             for (PropertyFilter filter: filters) {
-                if (Literal.class.isInstance(filter.right())) {
-                    if (StringLiteral.class.isInstance(filter.right())) {
-                        propertyType = "String";
-//                        System.out.println(" "+filter.right()+" String");
-                    } else if (NumberLiteral.class.isInstance(filter.right())) {
-                        propertyType = "Number";
-//                        System.out.println(" "+filter.right()+" Number");
-                    } else if (BooleanLiteral.class.isInstance(filter.right())) {
-                        propertyType = "Boolean";
-//                        System.out.println(" "+filter.right()+" Boolean");
-                    } else {
-                        System.out.println(" "+filter.right()+" Unknown literal type");
-                    }
-                }
-                if (Literal.class.isInstance(filter.left())) {
-                    if (StringLiteral.class.isInstance(filter.left())) {
-                        propertyType = "String";
-//                        System.out.println(" "+filter.left()+" String L");
-                    } else if (NumberLiteral.class.isInstance(filter.left())) {
-                        propertyType = "Number";
-//                        System.out.println(" "+filter.left()+" Number L");
-                    } else if (BooleanLiteral.class.isInstance(filter.left())) {
-                        propertyType = "Boolean";
-//                        System.out.println(" "+filter.left()+" Boolean L");
-                    } else {
-                        System.out.println(" "+filter.left()+" Unknown literal type L");
-                    }
+                propertyType = evaluateExpressionType(filter.right());
+                if (propertyType.equals("?")) {
+                    propertyType = evaluateExpressionType(filter.left());
                 }
             }
+        }
+        return propertyType;
+    }
+
+    private String evaluateExpressionType(Expression e){
+        String propertyType="?";
+        if (Literal.class.isInstance(e)) {
+            if (StringLiteral.class.isInstance(e)) {
+                propertyType = "String";
+//                System.out.println("         "+e+" String");
+            } else if (NumberLiteral.class.isInstance(e)) {
+                propertyType = "Number";
+//                System.out.println("         "+e+" Number");
+            } else if (BooleanLiteral.class.isInstance(e)) {
+                propertyType = "Boolean";
+//                System.out.println("         "+e+" Boolean");
+            } else if (NullLiteral.class.isInstance(e)) {
+                //skip
+            } else {
+                System.out.println("         "+e+" Unknown literal type");
+            }
+        } else if (ListExpression.class.isInstance(e)) {
+            System.out.println("         "+e+" list");
+            propertyType = "List";
+        } else if (FunctionInvocation.class.isInstance(e)) {
+            String function = ((FunctionInvocation)e).getFunctionName();
+            System.out.println("         "+e+" func "+function);
+            switch (function) {
+                case "datetime":
+                case "localdatetime":
+                    propertyType = "Datetime";
+                    break;
+                case "date":
+                    propertyType = "Date";
+                    break;
+                case "time":
+                case "localtime":
+                    propertyType = "Time";
+                    break;
+                case "duration":
+                    propertyType = "Duration";
+                    break;
+                case "point":
+                    propertyType = "Point";
+                    break;
+                //TODO string functions and math functions?
+            }
+
+
         }
         return propertyType;
     }

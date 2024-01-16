@@ -32,7 +32,7 @@ public class Parser implements Callable<Integer> {
     @Option(names = { "-o", "--output-dir" }, paramLabel = "OUTPUT-DIR", description = "The directory where the output files are written")
     private Path outputDir;
 
-    @Option(names = { "-l", "--layout-engine" }, paramLabel = "layout-engine", defaultValue = "DOT", description = "The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. Defaults to SMETANA. DOT requires the presence of the graphviz module on the system.")
+    @Option(names = { "-l", "--layout-engine" }, paramLabel = "layout-engine", defaultValue = "SMETANA", description = "The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. Defaults to SMETANA. DOT requires the presence of the graphviz module on the system.")
     private LayoutEngine layoutEngine;
 
     @Option(names = { "-j", "--json" }, description = "Export JSON model.")
@@ -41,6 +41,7 @@ public class Parser implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        System.out.println("#### CYPHER-MODEL-PARSER ####");
         if (!queriesFile.isFile() || !queriesFile.canRead()) {
             System.out.println("File not found, or file not readable : "+queriesFile);
             return 1;
@@ -58,11 +59,12 @@ public class Parser implements Callable<Integer> {
             return 3;
         }
 
-       System.out.println("Output written to directory: "+outputDir.toAbsolutePath());
+       System.out.println("Output directory: "+outputDir.toAbsolutePath());
 
         QueryFileReader queryReader = new HcQueryMapCsvReader(new QueryFilter());
         List<String> queries = queryReader.read(queriesFile);
         System.out.println("Number of queries to parse: " + queries.size());
+        System.out.println("Layout engine: " + layoutEngine.name());
 
         QueryParser parser = new QueryParser();
         Model fullModel = parser.parseQueries(queries);

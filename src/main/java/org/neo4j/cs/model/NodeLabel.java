@@ -7,7 +7,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
-@ToString
+@ToString(callSuper=true)
 public class NodeLabel extends EntityType {
     @NonNull
     @Getter
