@@ -6,11 +6,12 @@ import org.neo4j.cs.model.NodeLabel;
 import org.neo4j.cypherdsl.core.*;
 import org.neo4j.cypherdsl.core.StatementCatalog.PropertyFilter;
 import org.neo4j.cypherdsl.core.StatementCatalog.Property;
+import org.neo4j.cypherdsl.core.ast.Visitable;
+import org.neo4j.cypherdsl.core.ast.Visitor;
 import org.neo4j.cypherdsl.parser.CyperDslParseException;
 import org.neo4j.cypherdsl.parser.CypherParser;
 import org.neo4j.cypherdsl.parser.UnsupportedCypherException;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
 
 import java.util.*;
 import java.util.Set;
@@ -21,8 +22,145 @@ import static org.neo4j.cypherdsl.core.StatementCatalog.Token.Type.RELATIONSHIP_
 
 public class QueryParser {
 
+    private static String PROPERTY_CLASS = "org.neo4j.cypherdsl.core.InternalPropertyImpl";
+
     @Getter
     private int errors = 0;
+
+    private List<Operator> sameTypeOperators = new ArrayList<>();
+    private List<Operator> numberOperators = new ArrayList<>();
+    private List<Operator> stringOperators = new ArrayList<>();
+    private List<Operator> booleanOperators = new ArrayList<>();
+
+    private List<String> booleanFunctions = new ArrayList<>();
+    private List<String> numberFunctions = new ArrayList<>();
+    private List<String> stringFunctions = new ArrayList<>();
+    private List<String> listFunctions = new ArrayList<>();
+    private List<String> dateFunctions = new ArrayList<>();
+    private List<String> timeFunctions = new ArrayList<>();
+    private List<String> datetimeFunctions = new ArrayList<>();
+    private List<String> durationFunctions = new ArrayList<>();
+    private List<String> pointFunctions = new ArrayList<>();
+
+    private Map<String,List> functionTypeMapping = new HashMap<>();
+
+
+    public QueryParser() {
+        this.sameTypeOperators.add(Operator.EQUALITY);
+        this.sameTypeOperators.add(Operator.INEQUALITY);
+        this.sameTypeOperators.add(Operator.LESS_THAN);
+        this.sameTypeOperators.add(Operator.GREATER_THAN);
+        this.sameTypeOperators.add(Operator.LESS_THAN_OR_EQUAL_TO);
+        this.sameTypeOperators.add(Operator.GREATER_THAN_OR_EQUAL_TO);
+
+        this.numberOperators.add(Operator.ADDITION);
+        this.numberOperators.add(Operator.SUBTRACTION);
+        this.numberOperators.add(Operator.UNARY_MINUS);
+        this.numberOperators.add(Operator.UNARY_PLUS);
+        this.numberOperators.add(Operator.MULTIPLICATION);
+        this.numberOperators.add(Operator.DIVISION);
+        this.numberOperators.add(Operator.MODULO_DIVISION);
+        this.numberOperators.add(Operator.EXPONENTIATION);
+
+        this.stringOperators.add(Operator.STARTS_WITH);
+        this.stringOperators.add(Operator.CONTAINS);
+        this.stringOperators.add(Operator.ENDS_WITH);
+        this.stringOperators.add(Operator.CONCAT);
+        this.stringOperators.add(Operator.MATCHES);
+
+        this.booleanOperators.add(Operator.AND);
+        this.booleanOperators.add(Operator.OR);
+        this.booleanOperators.add(Operator.XOR);
+        this.booleanOperators.add(Operator.NOT);
+
+        booleanFunctions.add("toBoolean");
+        booleanFunctions.add("toBooleanOrNull");
+        booleanFunctions.add("point.withinBBox");
+
+        numberFunctions.add("toInteger");
+        numberFunctions.add("toIntegerOrNull");
+        numberFunctions.add("toFloat");
+        numberFunctions.add("toFloatOrNull");
+        numberFunctions.add("timestamp");
+        numberFunctions.add("size");
+        numberFunctions.add("abs");
+        numberFunctions.add("ceil");
+        numberFunctions.add("floor");
+        numberFunctions.add("rand");
+        numberFunctions.add("round");
+        numberFunctions.add("sign");
+        numberFunctions.add("e");
+        numberFunctions.add("exp");
+        numberFunctions.add("log");
+        numberFunctions.add("log10");
+        numberFunctions.add("acos");
+        numberFunctions.add("asin");
+        numberFunctions.add("atan");
+        numberFunctions.add("atan2");
+        numberFunctions.add("cos");
+        numberFunctions.add("cot");
+        numberFunctions.add("degrees");
+        numberFunctions.add("haversin");
+        numberFunctions.add("pi");
+        numberFunctions.add("radians");
+        numberFunctions.add("sin");
+        numberFunctions.add("tan");
+        numberFunctions.add("point.distance");
+        numberFunctions.add("char_length");
+        numberFunctions.add("elementId");
+        numberFunctions.add("character_length");
+        numberFunctions.add("length");
+
+
+        stringFunctions.add("valueType");
+        stringFunctions.add("left");
+        stringFunctions.add("ltrim");
+        stringFunctions.add("replace");
+        stringFunctions.add("right");
+        stringFunctions.add("rtrim");
+        stringFunctions.add("substring");
+        stringFunctions.add("toLower");
+        stringFunctions.add("toUpper");
+        stringFunctions.add("toString");
+        stringFunctions.add("toStringOrNull");
+        stringFunctions.add("trim");
+        stringFunctions.add("elementId");
+        stringFunctions.add("type");
+
+        listFunctions.add("split");
+        listFunctions.add("keys");
+        listFunctions.add("labels");
+        listFunctions.add("nodes");
+        listFunctions.add("range");
+        listFunctions.add("relationships");
+        listFunctions.add("tail");
+        listFunctions.add("toBooleanList");
+        listFunctions.add("toFloatList");
+        listFunctions.add("toIntegerList");
+        listFunctions.add("toStringList");
+
+        dateFunctions.add("date");
+
+        timeFunctions.add("time");
+        timeFunctions.add("localtime");
+
+        datetimeFunctions.add("datetime");
+        datetimeFunctions.add("localdatetime");
+
+        durationFunctions.add("duration");
+
+        pointFunctions.add("point");
+
+        functionTypeMapping.put("String", stringFunctions);
+        functionTypeMapping.put("Boolean", booleanFunctions);
+        functionTypeMapping.put("Number", numberFunctions);
+        functionTypeMapping.put("List", listFunctions);
+        functionTypeMapping.put("Date", dateFunctions);
+        functionTypeMapping.put("Time", timeFunctions);
+        functionTypeMapping.put("Datetime", datetimeFunctions);
+        functionTypeMapping.put("Duration", durationFunctions);
+        functionTypeMapping.put("Point", pointFunctions);
+    }
 
     public Model parseQueries(List<String> queries) {
         this.errors = 0;
@@ -32,8 +170,13 @@ public class QueryParser {
         for(String q : queries) {
             fullModel.add(parseQuery(q));
         }
-        float errorRate = 100 * this.errors / queries.size();
-        System.out.println("Parsing complete. Errors: "+this.errors+" ("+errorRate+"%)");
+
+        if (queries.size() > 0) {
+            float errorRate = 100 * this.errors / queries.size();
+            System.out.println("Parsing complete. Errors: " + this.errors + " (" + errorRate + "%)");
+        } else {
+            System.out.println("No queries to parse.");
+        }
 
         //cleanup undirectedNodeLabels sets if labels are found in source or target sets
         for (Map.Entry<String, RelationshipType> rtEntry: fullModel.getRelationshipTypes().entrySet()) {
@@ -45,7 +188,7 @@ public class QueryParser {
 
             rt.dedupeProperties();
         }
-        System.out.println(fullModel);
+
         //dedupe properties
         for (Map.Entry<String, NodeLabel> nlEntry: fullModel.getNodeLabels().entrySet()) {
             NodeLabel nl = nlEntry.getValue();
@@ -57,9 +200,10 @@ public class QueryParser {
 
     public Model parseQuery(String query) {
         Model queryModel = new Model();
-//        System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
+        //System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
+
         //parse
         try {
             var statement = CypherParser.parse(query);
@@ -114,34 +258,6 @@ public class QueryParser {
                 }
             }
 
-//            for (Index index : parseIndex(query)) {
-//                EntityType entity;
-//                if (index.getNodeLabel() != null) {
-//                    //TODO : find label in nodeLabels or create it
-//                    for (NodeLabel nodeLabel : nodeLabels) {
-//                        if (nodeLabel.getLabel() == index.getNodeLabel())
-//                    }
-//                } else {
-//                    //TODO : find type in relationshipTypes or create it
-//                }
-//                for (String propertyName : index.getProperties()) {
-//                    boolean found = false;
-//                    //find property within entity or create them
-//                    for (org.neo4j.cs.model.Property entityProperty : entity.getProperties()) {
-//                        if (entityProperty.getKey() == propertyName){
-//                            found = true;
-//                            entityProperty.setIndexed(true);
-//                        }
-//                    }
-//                    //if not found, add it
-//                    if (!found) {
-//                        org.neo4j.cs.model.Property newProperty = new org.neo4j.cs.model.Property(propertyName);
-//                        newProperty.setIndexed(true);
-//                        entity.addProperty(newProperty);
-//                    }
-//                }
-//            }
-
             queryModel.setNodeLabels(nodeLabels);
             queryModel.setRelationshipTypes(relationshipTypes);
         } catch (CyperDslParseException e) {
@@ -172,90 +288,128 @@ public class QueryParser {
         return queryModel;
     }
 
-//    private Set<Index> parseIndex(String query) {
-//        Set<Index> indices = new HashSet<>();
-//        //TODO : work on regex
-//        Pattern pattern = Pattern.compile("CREATE INDEX FOR \\((\\w)?:(\\w)\\) ON \\((\\w)?.(\\w)\\)", Pattern.CASE_INSENSITIVE);
-//        Matcher matcher = pattern.matcher(query);
-//        boolean matchFound = matcher.find();
-//        if(matchFound) {
-//            String entity = matcher.group(1);
-//            String property = matcher.group(3);
-//            System.out.println("Index : "+entity+"."+property);
-//            //TODO : figure out node or rel
-//            Index i = new Index(entity, property, Index.EntityType.NODE);
-//            indices.add(i);
-//        }
-//        return indices;
-//    }
 
     private String shortenQueryForLogging(String query) {
         return query.replaceAll("\n", " ").substring(0, Math.min(100, query.length()));
     }
 
     private String getPropertyType(Property prop, StatementCatalog catalog) {
-//        System.out.println("   "+prop.name());
+        // System.out.println("   "+prop.name());
+        Set<String> propertyTypeCandidates = new HashSet<>();
         String propertyType="?";
         Collection<PropertyFilter> filters = catalog.getFilters(prop);
+
         if (filters != null) {
-            System.out.println("      "+filters);
+            //System.out.println("      "+prop.name()+" "+filters);
             //use filter expressions to try to find out the property types
             for (PropertyFilter filter: filters) {
-                propertyType = evaluateExpressionType(filter.right());
-                if (propertyType.equals("?")) {
-                    propertyType = evaluateExpressionType(filter.left());
-                }
+                evaluateFilter(filter, propertyTypeCandidates);
+            }
+
+            //only set type if there's no ambiguity, i.e. only 1 candidate type
+            if (propertyTypeCandidates.size() == 1) {
+                //System.out.println("      " + propertyTypeCandidates.toString());
+                propertyType=propertyTypeCandidates.stream().toList().get(0);
             }
         }
         return propertyType;
     }
 
-    private String evaluateExpressionType(Expression e){
-        String propertyType="?";
-        if (Literal.class.isInstance(e)) {
-            if (StringLiteral.class.isInstance(e)) {
-                propertyType = "String";
-//                System.out.println("         "+e+" String");
-            } else if (NumberLiteral.class.isInstance(e)) {
-                propertyType = "Number";
-//                System.out.println("         "+e+" Number");
-            } else if (BooleanLiteral.class.isInstance(e)) {
-                propertyType = "Boolean";
-//                System.out.println("         "+e+" Boolean");
-            } else if (NullLiteral.class.isInstance(e)) {
-                //skip
-            } else {
-                System.out.println("         "+e+" Unknown literal type");
-            }
-        } else if (ListExpression.class.isInstance(e)) {
-            System.out.println("         "+e+" list");
-            propertyType = "List";
-        } else if (FunctionInvocation.class.isInstance(e)) {
-            String function = ((FunctionInvocation)e).getFunctionName();
-            System.out.println("         "+e+" func "+function);
-            switch (function) {
-                case "datetime":
-                case "localdatetime":
-                    propertyType = "Datetime";
-                    break;
-                case "date":
-                    propertyType = "Date";
-                    break;
-                case "time":
-                case "localtime":
-                    propertyType = "Time";
-                    break;
-                case "duration":
-                    propertyType = "Duration";
-                    break;
-                case "point":
-                    propertyType = "Point";
-                    break;
-                //TODO string functions and math functions?
-            }
 
+
+    private void evaluateFilter(PropertyFilter f, Set<String> candidates){
+        Operator operator = f.operator();
+        Expression otherExpression;
+
+        //get the opposite side of the predicate, that's compared to the property
+        if ( f.left() != null && f.left().getClass().getName().equals(PROPERTY_CLASS) ) {
+            otherExpression = f.right();
+        } else if ( f.right() != null && f.right().getClass().getName().equals(PROPERTY_CLASS) ) {
+            otherExpression = f.left();
+        } else {
+            return;
+        }
+
+        //special case for boolean predicate "WHERE n.prop" => no operator, no right side
+        if (otherExpression == null) {
+            if (operator == null) {
+                candidates.add("Boolean");
+            }
+            return;
+        }
+
+        //skip some cases where we can't directly infer type (n.prop = $param, n.prop = .prop2)
+        if (Parameter.class.isInstance(otherExpression)) { return; }
+        if (otherExpression.getClass().getName().equals(PROPERTY_CLASS)) { return; }
+        //System.out.println("         "+otherExpression);
+
+        //operator is of a kind that implies both sides have the same type
+        if (this.sameTypeOperators.contains(operator)) {
+            //case A1 : property is compared to a literal
+            if (Literal.class.isInstance(otherExpression)) {
+                if (StringLiteral.class.isInstance(otherExpression)) {
+                    candidates.add("String");
+                } else if (NumberLiteral.class.isInstance(otherExpression)) {
+                    candidates.add("Number");
+                } else if (BooleanLiteral.class.isInstance(otherExpression)) {
+                    candidates.add("Boolean");
+                }
+                //  System.out.println("         A1: "+otherExpression);
+            //case A2 : property is compared to a list
+            } else if (ListExpression.class.isInstance(otherExpression)) {
+                //System.out.println("         A2: "+otherExpression);
+                candidates.add("List");
+            //case A3 : property is compared to a function with a defined return type
+            } else if (FunctionInvocation.class.isInstance(otherExpression)) {
+                String function = ((FunctionInvocation)otherExpression).getFunctionName();
+                functionTypeMapping.entrySet().stream().forEach(e -> {
+                    List<String> functionList = e.getValue();
+                    if (functionList.contains(function)) {
+                        candidates.add(e.getKey());
+                        //System.out.println("         A3: func '"+function+"' => "+e.getKey());
+                    }
+                });
+            }
+        //case B1 : other operators directly imply a specific type (ex : STARTS_WITH => string)
+        } else if (this.stringOperators.contains(operator)) {
+            candidates.add("String");
+            //System.out.println("         B1: "+operator+" string");
+        } else if (this.numberOperators.contains(operator)) {
+            candidates.add("Number");
+            //System.out.println("         B1: "+operator+" Number");
+        } else if (this.booleanOperators.contains(operator)) {
+            candidates.add("Boolean");
+            //System.out.println("         B1: "+operator+" Boolean");
+        //case B2 : "n.prop IN [...]" pattern => use the type of the 1st literal in the list
+        } else if (operator.equals(Operator.IN) && ListExpression.class.isInstance(otherExpression)) {
+            //System.out.println("         B2: IN "+otherExpression);
+            otherExpression.accept(new ListVisitor(candidates));
+        }
+    }
+
+    protected class ListVisitor implements Visitor {
+        private Set<String> candidates;
+        private boolean found;
+        public ListVisitor(Set<String> candidates) {
+            this.candidates=candidates;
+            this.found=false;
+        }
+
+        public void enter(Visitable v) {
+            if (found) return;
+            if (Literal.class.isInstance(v)) {
+                if (StringLiteral.class.isInstance(v)) {
+                    candidates.add("String");
+                } else if (NumberLiteral.class.isInstance(v)) {
+                    candidates.add("Number");
+                } else if (BooleanLiteral.class.isInstance(v)) {
+                    candidates.add("Boolean");
+                }
+            }
 
         }
-        return propertyType;
+        public void leave(Visitable segment) {
+            if (this.candidates.size() > 0) found=true;
+        }
     }
 }

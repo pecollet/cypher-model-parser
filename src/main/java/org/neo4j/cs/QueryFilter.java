@@ -1,7 +1,11 @@
 package org.neo4j.cs;
 
+import org.neo4j.cypherdsl.core.StatementCatalog;
+
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class QueryFilter {
@@ -23,6 +27,7 @@ public class QueryFilter {
                 .filter( q ->
                            !q.toUpperCase().startsWith("EXPLAIN")
                         && !q.toUpperCase().startsWith("SHOW ")
+                        && !matchApocMetaCombinatorialQueries(q)
                         && !q.contains("This query is just used to load the cypher compiler during warmup. Please ignore")
                 )
                 //CYPHER modifiers are not supported by cypherDSL, so remove them
@@ -42,4 +47,22 @@ public class QueryFilter {
                 )
                 .collect(Collectors.toList());
     }
+
+
+    //apoc.meta.schema throws many queries combining all known labels+types to retrieve counts, even if they don't exist in the model
+    private boolean matchApocMetaCombinatorialQueries(String query) {
+        String tokenRegex =  "([A-Za-z_][\\w]*|`.+`)";
+        Pattern pattern1 = Pattern.compile("^MATCH \\(:"+tokenRegex+"\\)-\\[r:"+tokenRegex+"\\]->\\(\\) RETURN count\\(r\\) AS count$");
+        Pattern pattern2 = Pattern.compile("^MATCH \\(\\)-\\[r:"+tokenRegex+"\\]->\\(:"+tokenRegex+"\\) RETURN count\\(r\\) AS count$");
+
+        Matcher matcher1 = pattern1.matcher(query);
+        Matcher matcher2 = pattern2.matcher(query);
+        boolean result = matcher1.find() || matcher2.find();
+        if (result) System.out.println("Filtering suspected apoc.meta query: "+query);
+        return result;
+    }
+
+
+
+
 }

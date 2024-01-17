@@ -61,6 +61,7 @@ public class Parser implements Callable<Integer> {
 
        System.out.println("Output directory: "+outputDir.toAbsolutePath());
 
+        //TODO : read directly from query.log (PLAIN and JSON formats)
         QueryFileReader queryReader = new HcQueryMapCsvReader(new QueryFilter());
         List<String> queries = queryReader.read(queriesFile);
         System.out.println("Number of queries to parse: " + queries.size());
