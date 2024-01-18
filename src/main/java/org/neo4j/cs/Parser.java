@@ -11,10 +11,8 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Option;
 
-import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.io.*;
 import java.util.concurrent.Callable;
@@ -62,7 +60,7 @@ public class Parser implements Callable<Integer> {
        System.out.println("Output directory: "+outputDir.toAbsolutePath());
 
         //TODO : read directly from query.log (PLAIN and JSON formats)
-        QueryFileReader queryReader = new HcQueryMapCsvReader(new QueryFilter());
+        QueryFileReader queryReader = new HcDatabaseQueriesCsvReader(new QueryFilter());
         List<String> queries = queryReader.read(queriesFile);
         System.out.println("Number of queries to parse: " + queries.size());
         System.out.println("Layout engine: " + layoutEngine.name());
