@@ -18,7 +18,7 @@ import java.io.*;
 import java.util.concurrent.Callable;
 
 
-@Command(name = "parse-model", mixinStandardHelpOptions = true, versionProvider = ManifestVersionProvider.class,
+@Command(name = "Parser", mixinStandardHelpOptions = true, versionProvider = ManifestVersionProvider.class,
         description = "Parses cypher queries in <queriesFile> and generates a PlantUML class diagram.")
 public class Parser implements Callable<Integer> {
 

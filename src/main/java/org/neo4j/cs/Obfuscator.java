@@ -1,72 +1,64 @@
 package org.neo4j.cs;
 
-import org.neo4j.cypherdsl.core.Literal;
+import org.neo4j.cypherdsl.core.*;
 import org.neo4j.cypherdsl.parser.CypherParser;
+import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType;
+import org.neo4j.cypherdsl.parser.Options;
+import picocli.CommandLine;
 
-public class Obfuscator {
-    private static final String OBFUSCATED_LITERAL = "********"; // Replace with the desired obfuscated text
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.function.Function;
 
-    private static String maskValue(Literal input) {
-//        System.out.println(input.getContent());
-//        System.out.println(input.asString());
-        int len = input.getContent().toString().length();
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < len; i++) {
-            sb.append('*');
+
+@CommandLine.Command(name = "Obfuscator", mixinStandardHelpOptions = true, versionProvider = ManifestVersionProvider.class,
+        description = "Obfuscate literal values in cypher query.")
+public class Obfuscator implements Callable<Integer>  {
+
+    private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
+
+
+    @CommandLine.Parameters(index = "0", description = "The query to obfuscate")
+    private String query;
+
+
+    Function<Expression, Expression> maskLiteral = e -> {
+        if (e instanceof Literal) {
+            if (e instanceof StringLiteral) {
+                return Cypher.literalOf(OBFUSCATED_STRING);
+            } else if (e instanceof NumberLiteral) {
+                //replace by nines (so it's still a valid number), keeping the same number of digits
+                long value = ((NumberLiteral)e).getContent().longValue();
+                int numDigits = (int) Math.log10(value) + 1;
+
+                // Calculate the result with all 9s
+                long allNines = (long) (Math.pow(10, numDigits) - 1);
+                return Cypher.literalOf(allNines);
+            }
         }
-        return sb.toString();
+        return e;
+    };
+
+    @Override
+    public Integer call() throws Exception {
+        Options options = Options.newOptions()
+                .withCallback(ExpressionCreatedEventType.ON_NEW_LITERAL,
+                        Expression.class,
+                        maskLiteral )
+                .build();
+        var statement = CypherParser.parse(query, options);
+
+        //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
+        String result = statement.getCypher().replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
+
+        System.out.println(result);
+        return 0;
     }
 
-    public  static void main(String... a) {
-
-        var statement = CypherParser.parse(a[0]);
-        var catalog = statement.getCatalog();
-        for (var l : catalog.getLiterals()) {
-            String masked = maskValue(l);
-            System.out.println(l.asString() + " => " + masked);
-
-        }
-
+    public static void main(String... args) {
+        int exitCode = new CommandLine(new Obfuscator()).execute(args);
+        System.exit(exitCode);
     }
-//    public  static void obfuscateLiterals(String... a) {
-//        StringBuilder sb = new StringBuilder();
-//        int i = 0;
-//        List<String> adjacentCharacters = getAdjacentCharacters(a[0]);
-//        //val adjacentCharacters = rawQueryText.sliding(2).toVector
-//
-//        for (LiteralOffset literalOffset : state.getSensitiveLiteralOffsets()) {
-//            int start = literalOffset.getStart();
-//
-//            if (start >= rawQueryText.length() || start < i) {
-//                throw new IllegalStateException("Literal offset out of bounds: " + literalOffset);
-//            }
-//
-//            sb.append(rawQueryText, i, start);
-//            sb.append(OBFUSCATED_LITERAL);
-//            i = start + literalOffset.getLength().orElse(
-//                    literalStringLength(adjacentCharacters, rawQueryText, start)
-//            );
-//        }
-////        for (literalOffset <- state.sensitiveLiteralOffsets) {
-////            val start = literalOffset.start
-////            if (start >= rawQueryText.length || start < i)
-////                throw new IllegalStateException(s"Literal offset out of bounds: $literalOffset.")
-////
-////            sb.append(rawQueryText.substring(i, start))
-////            sb.append(CypherQueryObfuscator.OBFUSCATED_LITERAL)
-////            i = start + literalOffset.length.getOrElse(literalStringLength(adjacentCharacters, rawQueryText, start))
-////        }
-//        if (i < rawQueryText.length)
-//            sb.append(rawQueryText.substring(i))
-//
-//        sb.toString()
-//
-//    }
-//    private static List<String> getAdjacentCharacters(String rawQueryText) {
-//        List<String> adjacentCharacters = new ArrayList<>();
-//        for (int j = 0; j < rawQueryText.length() - 1; j++) {
-//            adjacentCharacters.add(rawQueryText.substring(j, j + 2));
-//        }
-//        return adjacentCharacters;
-//    }
+
 }

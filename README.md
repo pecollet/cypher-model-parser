@@ -6,7 +6,7 @@ Tool that parses a file containing a list of cypher queries (as exported by the 
 
 
 ```
-java -jar cypher-model-parser-1.0-SNAPSHOT.jar queries_map.csv
+java -jar cypher-model-parser-1.0-SNAPSHOT.jar queries.csv
 ```
 
 Full options:
@@ -34,7 +34,7 @@ This will produce :
 
 **Pre-requisites:**
 - JRE 17
-- having the `database_queries.csv` file. Run a HC for the HC to output that file. It will contain all the distinct cypher queries present in the query.logs for the selected database.
+- having an input CSV file, single column, with 1 query per line (quoted), no headers.
 
 
 **Notes:**
