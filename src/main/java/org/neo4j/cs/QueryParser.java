@@ -261,22 +261,22 @@ public class QueryParser {
             queryModel.setNodeLabels(nodeLabels);
             queryModel.setRelationshipTypes(relationshipTypes);
         } catch (CyperDslParseException e) {
-            String parseExceptionText ="org.neo4j.cypherdsl.parser.internal.parser.javacc.ParseException:";
-            String cause = e.getCause().toString();
-            System.out.println("### [CyperDslParseException] " +
-                    cause.replace(parseExceptionText, "")
-                            .replaceAll("\n", " ")
-                            .substring(0, Math.min(100, cause.length() - parseExceptionText.length()))
-                    + " : " +shortenQueryForLogging(query)
-            );
+//            String parseExceptionText ="org.neo4j.cypherdsl.parser.internal.parser.javacc.ParseException:";
+//            String cause = e.getCause().toString();
+//            System.out.println("### [CyperDslParseException] " +
+//                    cause.replace(parseExceptionText, "")
+//                            .replaceAll("\n", " ")
+//                            .substring(0, Math.min(100, cause.length() - parseExceptionText.length()))
+//                    + " : " +shortenQueryForLogging(query)
+//            );
             this.errors+=1;
         } catch (UnsupportedCypherException e) {
-            String cause = e.getCause().toString();
-            System.out.println("### [UnsupportedCypherException] " +
-                    cause.replaceAll("\n", " ")
-                    .substring(0, Math.min(100, cause.length()))
-                    + " : " +shortenQueryForLogging(query)
-            );
+//            String cause = e.getCause().toString();
+//            System.out.println("### [UnsupportedCypherException] " +
+//                    cause.replaceAll("\n", " ")
+//                    .substring(0, Math.min(100, cause.length()))
+//                    + " : " +shortenQueryForLogging(query)
+//            );
             this.errors+=1;
         } catch (NullPointerException npe) {
             System.out.println("### [NullPointerException] " + npe);
