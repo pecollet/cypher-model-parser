@@ -72,11 +72,13 @@ java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.Obfuscator <query_string>
 Full options:
 
 ```
-Usage: Obfuscator [-hV] <query>
+Usage: Obfuscator [-hV] [-d=dialect] <query>
 Obfuscate literal values in cypher query.
-      <query>     The query to obfuscate
-  -h, --help      Show this help message and exit.
-  -V, --version   Print version information and exit.
+      <query>             The query to obfuscate
+  -d, --dialect=dialect   The cypher dialect : [NEO4J_5|NEO4J_4]. Defaults to
+                            NEO4J_5.
+  -h, --help              Show this help message and exit.
+  -V, --version           Print version information and exit.
 ```
 
 This will return the obfuscated query on stdout.
@@ -89,5 +91,5 @@ Example:
 ```
 > java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.Obfuscator "MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE movie.title CONTAINS 'sdfdg' or r.x = 12 or r.y IN [1290,'gh'] RETURN movie.title, r.role"
 
-MATCH (movie:`Movie`)-[r:`HAS`]->(x:`Thing`) WHERE (movie.title CONTAINS '****' OR r.x = ** OR r.y IN [****, '****']) RETURN movie.title, r.role
+MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE (movie.title CONTAINS '****' OR r.x = ** OR r.y IN [****, '****']) RETURN movie.title, r.role
 ```

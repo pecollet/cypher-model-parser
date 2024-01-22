@@ -1,11 +1,12 @@
 package org.neo4j.cs;
 
 import org.neo4j.cypherdsl.core.*;
+import org.neo4j.cypherdsl.core.renderer.Configuration;
+import org.neo4j.cypherdsl.core.renderer.Dialect;
+import org.neo4j.cypherdsl.core.renderer.Renderer;
 import org.neo4j.cypherdsl.parser.*;
 import picocli.CommandLine;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 
@@ -19,6 +20,9 @@ public class Obfuscator implements Callable<Integer>  {
 
     @CommandLine.Parameters(index = "0", description = "The query to obfuscate")
     private String query;
+
+    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect", defaultValue = "NEO4J_5", description = "The cypher dialect : [NEO4J_5|NEO4J_4]. Defaults to NEO4J_5.")
+    private Dialect dialect;
 
 
     Function<Expression, Expression> maskLiteral = e -> {
@@ -49,7 +53,14 @@ public class Obfuscator implements Callable<Integer>  {
         try {
             var statement = CypherParser.parse(query.replaceAll("<br>", "\n"), options);
             //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
-            result = statement.getCypher().replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
+
+            var rendererConfig = Configuration.newConfig()
+                    .alwaysEscapeNames(false)
+                    .withPrettyPrint(true)
+                    .withDialect(dialect).build();
+            var renderer = Renderer.getRenderer(rendererConfig);
+            result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
+
         } catch (CyperDslParseException e) {
 //            System.out.println("### [Exception] " + e + " : " +query );
         } catch (UnsupportedCypherException e) {
@@ -57,6 +68,7 @@ public class Obfuscator implements Callable<Integer>  {
         } catch (Exception e) {
             System.out.println("### [Exception] " + e + " : " +query );
         }
+
 
         System.out.println(result);
         return 0;
