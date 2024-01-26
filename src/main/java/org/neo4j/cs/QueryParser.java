@@ -267,7 +267,7 @@ public class QueryParser {
         } catch (CyperDslParseException e) {
 //            String parseExceptionText ="org.neo4j.cypherdsl.parser.internal.parser.javacc.ParseException:";
 //            String cause = e.getCause().toString();
-//            System.out.println("### [CyperDslParseException] " +
+//            System.err.println("### [CyperDslParseException] " +
 //                    cause.replace(parseExceptionText, "")
 //                            .replaceAll("\n", " ")
 //                            .substring(0, Math.min(100, cause.length() - parseExceptionText.length()))
@@ -276,16 +276,17 @@ public class QueryParser {
             this.errors+=1;
         } catch (UnsupportedCypherException e) {
 //            String cause = e.getCause().toString();
-//            System.out.println("### [UnsupportedCypherException] " +
+//            System.err.println("### [UnsupportedCypherException] " +
 //                    cause.replaceAll("\n", " ")
 //                    .substring(0, Math.min(100, cause.length()))
 //                    + " : " +shortenQueryForLogging(query)
 //            );
             this.errors+=1;
-        } catch (NullPointerException npe) {
-            System.out.println("### [NullPointerException] " + npe);
+//        } catch (NullPointerException npe) {
+//            this.errors+=1;
+//            System.err.println("### [NullPointerException] " + npe);
         } catch (Exception e) {
-            System.out.println("### [Exception] " + e + " : " +shortenQueryForLogging(query) );
+            System.err.println("### [Exception] " + e + " : " +shortenQueryForLogging(query) );
             this.errors+=1;
         }
 //        System.out.println(queryModel);
