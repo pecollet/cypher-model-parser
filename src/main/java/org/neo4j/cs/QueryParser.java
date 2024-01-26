@@ -172,8 +172,12 @@ public class QueryParser {
         }
 
         if (queries.size() > 0) {
-            double errorRate = 100.0 * this.errors / queries.size();
-            System.out.println("Parsing complete. Errors: " + this.errors + " (" + errorRate + "%)");
+            if (this.errors == 0) {
+                System.out.println("Parsing complete. 100% success.");
+            } else {
+                double successRate = 100.0 - (100.0 * this.errors / queries.size());
+                System.out.println("Parsing complete. "+String.format("%.2f",successRate)+"% success (skipped " +  this.errors +" out of "+queries.size()+")");
+            }
         } else {
             System.out.println("No queries to parse.");
         }
