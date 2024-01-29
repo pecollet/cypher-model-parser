@@ -72,8 +72,8 @@ public class Parser implements Callable<Integer> {
         if (exportJson) {
             saveJson(fullModel, outputDir + "/model.json");
         }
-        savePlantUml(fullModel, outputDir+ "/model.puml", FileFormat.SVG, layoutEngine);
-        return 0;
+        int retCode = savePlantUml(fullModel, outputDir+ "/model.puml", FileFormat.SVG, layoutEngine);
+        return retCode;
     }
 
     public static void main(String... args) {
@@ -93,7 +93,7 @@ public class Parser implements Callable<Integer> {
         System.out.println("Successfully written model to "+ filePath);
     }
 
-    public void savePlantUml(Model m, String filePath, FileFormat imageFormat, LayoutEngine engine) {
+    public int savePlantUml(Model m, String filePath, FileFormat imageFormat, LayoutEngine engine) {
         String prefix = "@startuml\n";
         String layoutCommand = "";
         if (engine == LayoutEngine.SMETANA) layoutCommand = "!pragma layout smetana\n";
@@ -123,7 +123,9 @@ public class Parser implements Callable<Integer> {
             }
         } catch (IOException e) {
             e.printStackTrace();
+            return 1;
         }
+        return 0;
     }
 
 }
