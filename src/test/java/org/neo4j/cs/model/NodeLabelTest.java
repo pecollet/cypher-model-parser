@@ -12,10 +12,10 @@ public class NodeLabelTest {
         NodeLabel nl = new NodeLabel("Thing");
         nl.addProperty("name");
         nl.addProperty("age", "int");
-        assertEquals(nl.asPlantUml(), "class \"Thing\" << (N,lightblue) >> {\n" +
-                "    name\n" +
+        assertEquals("class \"Thing\" << (N,lightblue) >> {\n" +
                 "    int age\n" +
-                "}");
+                "    name\n" +
+                "}", nl.asPlantUml());
     }
 
 }

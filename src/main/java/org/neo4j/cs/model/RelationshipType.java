@@ -35,7 +35,7 @@ public class RelationshipType  extends EntityType {
     public String asPlantUml() {
 
         String prefix = "class "+ '"' +this.type+'"'+" << (R,orange) >> {\n";
-        String properties = this.getProperties().stream()
+        String properties = this.getProperties().stream().sorted()
                 .map(p -> "    " + p.asPlantUml())
                 .collect(Collectors.joining("\n"));
         String suffix = "\n}";

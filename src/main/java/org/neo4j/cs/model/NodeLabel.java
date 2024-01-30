@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @ToString(callSuper=true)
+@EqualsAndHashCode
 public class NodeLabel extends EntityType {
     @NonNull
     @Getter
@@ -20,7 +21,7 @@ public class NodeLabel extends EntityType {
 
     public String asPlantUml() {
         String prefix = "class "+'"'+this.label+'"'+" << (N,lightblue) >> {\n";
-        String properties = this.getProperties().stream()
+        String properties = this.getProperties().stream().sorted()
                 .map(p -> "    " + p.asPlantUml())
                 .collect(Collectors.joining("\n"));
         String suffix = "\n}";

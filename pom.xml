@@ -6,7 +6,7 @@
 
     <groupId>org.neo4j.cs</groupId>
     <artifactId>cypher-model-parser</artifactId>
-    <version>0.3.5</version>
+    <version>0.3.6</version>
     <organization>
         <name>Neo4j</name>
         <url>https://neo4j.com</url>
@@ -86,7 +86,7 @@
                 <version>3.2.5</version>
                 <configuration>
                     <includes>
-                        <include>**/*Tests.java</include>
+                        <include>**/*Test.java</include>
                     </includes>
                 </configuration>
             </plugin>

@@ -30,15 +30,24 @@ public class QueryParserTest {
         expectedRelTypes.add("IS");
 
         Set expectedProperties = new HashSet<String>();
-        expectedProperties.add(new Property("name"));
+        expectedProperties.add(new Property("name", "String"));
 
-        assertEquals(m.getNodeLabels().keySet(), expectedNodeLabels);
-        assertEquals(m.getRelationshipTypes().keySet(), expectedRelTypes);
-        assertEquals(m.getNodeLabels().get("Thing").getProperties(), expectedProperties);
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+        assertEquals(expectedProperties, m.getNodeLabels().get("Thing").getProperties());
     }
     @Test
     void shouldParseQuery() {
         Model m = new QueryParser().parseQuery("MATCH (:Left)-[:HAS]-(:Right) RETURN *");
-        System.out.println(m);
+//        System.out.println(m);
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Left");
+        expectedNodeLabels.add("Right");
+
+        Set expectedRelTypes = new HashSet<String>();
+        expectedRelTypes.add("HAS");
+
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
     }
 }
