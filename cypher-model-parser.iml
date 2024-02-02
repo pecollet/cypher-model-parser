@@ -11,9 +11,9 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="Maven: org.neo4j:neo4j-cypher-dsl:2023.9.2" level="project" />
+    <orderEntry type="library" name="Maven: org.neo4j:neo4j-cypher-dsl:2023.9.3" level="project" />
     <orderEntry type="library" name="Maven: org.apiguardian:apiguardian-api:1.1.2" level="project" />
-    <orderEntry type="library" name="Maven: org.neo4j:neo4j-cypher-dsl-parser:2023.9.2" level="project" />
+    <orderEntry type="library" name="Maven: org.neo4j:neo4j-cypher-dsl-parser:2023.9.3" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-databind:2.16.1" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-annotations:2.16.1" level="project" />
     <orderEntry type="library" name="Maven: com.fasterxml.jackson.core:jackson-core:2.16.1" level="project" />
