@@ -202,11 +202,23 @@ public class QueryParser {
         return fullModel;
     }
 
+    private boolean isObfuscated(String query) {
+        return query.contains("******");
+    }
+
+    private String preProcessObfuscatedQuery(String query) {
+        return query.replaceAll("\\*\\*\\*\\*\\*\\*", "123456");
+    }
+
     public Model parseQuery(String query) {
         Model queryModel = new Model();
         //System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
+
+        if (isObfuscated(query)) {
+            query = preProcessObfuscatedQuery(query);
+        }
 
         //parse
         try {
@@ -270,7 +282,7 @@ public class QueryParser {
 //            System.err.println("### [CyperDslParseException] " +
 //                    cause.replace(parseExceptionText, "")
 //                            .replaceAll("\n", " ")
-//                            .substring(0, Math.min(100, cause.length() - parseExceptionText.length()))
+//                            .substring(0, Math.min(150, cause.length() - parseExceptionText.length()))
 //                    + " : " +shortenQueryForLogging(query)
 //            );
             this.errors+=1;
@@ -351,7 +363,7 @@ public class QueryParser {
         //operator is of a kind that implies both sides have the same type
         if (this.sameTypeOperators.contains(operator)) {
             //case A1 : property is compared to a literal
-            if (Literal.class.isInstance(otherExpression)) {
+            if (Literal.class.isInstance(otherExpression) && !((Literal)otherExpression).getContent().toString().equals("123456")) {
                 if (StringLiteral.class.isInstance(otherExpression)) {
                     candidates.add("String");
                 } else if (NumberLiteral.class.isInstance(otherExpression)) {

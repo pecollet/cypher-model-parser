@@ -62,9 +62,9 @@ public class Obfuscator implements Callable<Integer>  {
             result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
 
         } catch (CyperDslParseException e) {
-//            System.err.println("### [Exception] " + e + " : " +query );
+            System.err.println("### [CyperDslParseException] " + e + " : " +query );
         } catch (UnsupportedCypherException e) {
-//            System.err.println("### [Exception] " + e + " : " +query );
+            System.err.println("### [UnsupportedCypherException] " + e + " : " +query );
         } catch (Exception e) {
             System.err.println("### [Exception] " + e + " : " +query );
         }
