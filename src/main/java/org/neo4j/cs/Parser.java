@@ -30,7 +30,7 @@ public class Parser implements Callable<Integer> {
     @Option(names = { "-o", "--output-dir" }, paramLabel = "OUTPUT-DIR", description = "The directory where the output files are written")
     private Path outputDir;
 
-    @Option(names = { "-l", "--layout-engine" }, paramLabel = "layout-engine", defaultValue = "SMETANA", description = "The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. Defaults to SMETANA. DOT requires the presence of the graphviz module on the system.")
+    @Option(names = { "-l", "--layout-engine" }, paramLabel = "layout-engine", description = "The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. If not specified, an attempt is made to use DOT if present. DOT requires the presence of the graphviz module on the system.")
     private LayoutEngine layoutEngine;
 
     @Option(names = { "-j", "--json" }, description = "Export JSON model.")
@@ -63,6 +63,18 @@ public class Parser implements Callable<Integer> {
         QueryFileReader queryReader = new HcDatabaseQueriesCsvReader(new QueryFilter());
         List<String> queries = queryReader.read(queriesFile);
         System.out.println("Number of queries to parse: " + queries.size());
+
+
+        if (layoutEngine == null) {
+            // -l option not specified, check for the presence of "dot" command
+            if (isDotAvailable()) {
+                layoutEngine = LayoutEngine.DOT;
+            } else {
+                // If "dot" command is not present, use default layout engine
+                layoutEngine = LayoutEngine.SMETANA;
+            }
+        }
+
         System.out.println("Layout engine: " + layoutEngine.name());
 
         QueryParser parser = new QueryParser();
@@ -117,15 +129,39 @@ public class Parser implements Callable<Integer> {
                 System.out.println("Saving to "+imageFormat.name()+"...");
                 OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
                 FileFormatOption option = new FileFormatOption(imageFormat);
-                String desc = reader.outputImage(os, option).getDescription();
-                System.out.println("Successfully written "+imageFormat.name()+" to "+ filePath + imageFileSuffix + " "+ desc);
+                try {
+                    String desc = reader.outputImage(os, option).getDescription();
+                    System.out.println("Successfully written "+imageFormat.name()+" to "+ filePath + imageFileSuffix + " "+ desc);
+                } catch (Exception e) {
+                    System.out.println("XXX");
+                }
+
                 os.close();
             }
         } catch (IOException e) {
             e.printStackTrace();
             return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 2;
         }
         return 0;
+    }
+
+    private boolean isDotAvailable() {
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder("dot", "-V");
+            Process process = processBuilder.start();
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                System.out.println("DOT found.");
+                return true;
+            }
+        } catch (IOException | InterruptedException e) {
+            // Exception occurred, command is not present or couldn't be executed
+            System.out.println("Exception occurred while checking if DOT is present: " + e.getMessage());
+        }
+        return false;
     }
 
 }
