@@ -2,7 +2,7 @@ Tool that parses cypher queries in order to :
 - generate a class diagram of the graph model.
 - obfuscate literal values
 
-#Class diagram
+# Class diagram
 
 **Usage:**
 
@@ -19,10 +19,7 @@ Parses cypher queries in <queriesFile> and generates a PlantUML class diagram.
 <queriesFile>   The file containing the queries
 -h, --help          Show this help message and exit.
 -j, --json          Export JSON model.
--l, --layout-engine=layout-engine
-The layout engine to use when exporting a diagram picture
-: [SMETANA|DOT]. Defaults to SMETANA. DOT requires the
-presence of the graphviz module on the system.
+-l, --layout-engine=layout-engine          The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. If not specified, an attempt is made to use DOT if present. DOT requires the presence of the graphviz module on the system
 -o, --output-dir=OUTPUT-DIR
 The directory where the output files are written
 -V, --version       Print version information and exit.
@@ -60,7 +57,7 @@ RETURN reduce(x="", st in plantUlmStatements | x+'
 '+st) as res
 ```
 
-#Obfuscation
+# Obfuscation
 
 **Usage:**
 
