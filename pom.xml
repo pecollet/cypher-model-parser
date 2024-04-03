@@ -6,7 +6,7 @@
 
     <groupId>org.neo4j.cs</groupId>
     <artifactId>cypher-model-parser</artifactId>
-    <version>0.4.1</version>
+    <version>0.5.0</version>
     <organization>
         <name>Neo4j</name>
         <url>https://neo4j.com</url>
@@ -68,7 +68,12 @@
             <artifactId>opencsv</artifactId>
             <version>5.9</version>
         </dependency>
-
+        <dependency>
+            <groupId>com.github.stefanbirkner</groupId>
+            <artifactId>system-lambda</artifactId>
+            <version>1.2.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
