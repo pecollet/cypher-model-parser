@@ -52,24 +52,22 @@ public class Obfuscator implements Callable<Integer>  {
     @Override
     public Integer call() throws Exception {
         String result=query;
+        this.rendererConfig = Configuration.newConfig()
+                .alwaysEscapeNames(false)
+                .withPrettyPrint(true)
+                .withDialect(dialect).build();
         this.options = Options.newOptions()
                 .withCallback(ExpressionCreatedEventType.ON_NEW_LITERAL,
                         Expression.class,
                         maskLiteral )
                 .build();
-        this.rendererConfig = Configuration.newConfig()
-                .alwaysEscapeNames(false)
-                .withPrettyPrint(true)
-                .withDialect(dialect).build();
+
         try {
             var statement = CypherParser.parse(query.replaceAll("<br>", "\n"), this.options);
-            //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
 
-            this.rendererConfig = Configuration.newConfig()
-                    .alwaysEscapeNames(false)
-                    .withPrettyPrint(true)
-                    .withDialect(dialect).build();
             var renderer = Renderer.getRenderer(this.rendererConfig);
+
+            //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
             result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
 
         } catch (CyperDslParseException e) {

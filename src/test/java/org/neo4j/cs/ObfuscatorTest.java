@@ -3,8 +3,6 @@ package org.neo4j.cs;
 import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemErr;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized;
 
@@ -12,6 +10,7 @@ import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNor
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
 
 public class ObfuscatorTest {
 
@@ -108,5 +107,21 @@ public class ObfuscatorTest {
                     "})\n" , outText);
         });
         assertEquals("", errText);
+    }
+
+    @Test
+    void shouldWorkWithServerObfuscatedCypher() throws Exception {
+        String query="WITH apoc.cypher.runFirstColumn(******, {auth: $auth, lid: $lid}, ******) as x\n" +
+                "UNWIND x as this\n" +
+                "RETURN this { .username, .codes } AS this";
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("WITH apoc.cypher.runFirstColumn(******, {auth: $auth, lid: $lid}, ******) as x\n" +
+                    "UNWIND x as this\n" +
+                    "RETURN this { .username, .codes } AS this\n" , outText);
+        });
+        assertTrue(errText.contains("CyperDslParseException"));
     }
 }
