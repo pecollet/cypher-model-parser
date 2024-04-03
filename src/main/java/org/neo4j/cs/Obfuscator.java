@@ -65,7 +65,7 @@ public class Obfuscator implements Callable<Integer>  {
             var statement = CypherParser.parse(query.replaceAll("<br>", "\n"), this.options);
             //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
 
-            var rendererConfig = Configuration.newConfig()
+            this.rendererConfig = Configuration.newConfig()
                     .alwaysEscapeNames(false)
                     .withPrettyPrint(true)
                     .withDialect(dialect).build();
