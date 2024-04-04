@@ -8,12 +8,18 @@ public class PropertyTest {
     @Test
     void shouldExportCorrectPlantUml() {
         Property p = new Property("name");
-        assertEquals(p.asPlantUml(), "name");
+        assertEquals(p.asPlantUml(), "<&question-mark> name");
     }
 
     @Test
-    void shouldExportCorrectPlantUmlWithType() {
-        Property p = new Property("name", "string");
-        assertEquals(p.asPlantUml(), "string name");
+    void shouldExportCorrectPlantUmlWithStringType() {
+        Property p = new Property("name", "String");
+        assertEquals(p.asPlantUml(), "<&double-quote-serif-left> name");
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithListType() {
+        Property p = new Property("names", "List");
+        assertEquals(p.asPlantUml(), "<&list> names");
     }
 }

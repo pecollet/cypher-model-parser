@@ -12,7 +12,7 @@ public class RelationshipTypeTest {
     void shouldExportCorrectPlantUml() {
         RelationshipType rt = new RelationshipType("HAS_CHILD");
         rt.addProperty("from");
-        rt.addProperty("to", "int");
+        rt.addProperty("to", "Number");
         Set srcNodeLabels = new HashSet<String>();
         srcNodeLabels.add("Thing");
         Set targetNodeLabels = new HashSet<String>();
@@ -23,8 +23,8 @@ public class RelationshipTypeTest {
         rt.setTargetNodeLabels(targetNodeLabels);
         rt.setUndirectedNodeLabels(undirNodeLabels);
         assertEquals(rt.asPlantUml(), "class \"HAS_CHILD\" << (R,orange) >> {\n" +
-                "    from\n" +
-                "    int to\n" +
+                "    <&question-mark> from\n" +
+                "    <&bar-chart> to\n" +
                 "}\n" +
                 "\"Thing\" -- \"HAS_CHILD\"\n" +
                 "\"HAS_CHILD\" --> \"Stuff\"\n" +

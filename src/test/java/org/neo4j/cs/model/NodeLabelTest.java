@@ -11,10 +11,10 @@ public class NodeLabelTest {
     void shouldExportCorrectPlantUml() {
         NodeLabel nl = new NodeLabel("Thing");
         nl.addProperty("name");
-        nl.addProperty("age", "int");
+        nl.addProperty("age", "Number");
         assertEquals("class \"Thing\" << (N,lightblue) >> {\n" +
-                "    int age\n" +
-                "    name\n" +
+                "    <&bar-chart> age\n" +
+                "    <&question-mark> name\n" +
                 "}", nl.asPlantUml());
     }
 
