@@ -69,12 +69,15 @@ java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.Obfuscator <query_string>
 Full options:
 
 ```
-Usage: Obfuscator [-hV] [-d=dialect] <query>
+Usage: Obfuscator [-hpV] [-d=dialect] <query>
 Obfuscate literal values in cypher query.
       <query>             The query to obfuscate
   -d, --dialect=dialect   The cypher dialect : [NEO4J_5|NEO4J_4]. Defaults to
                             NEO4J_5.
   -h, --help              Show this help message and exit.
+  -p, --pretty            Always pretty print the resulting cypher, even if no
+                            obfuscation took place. Obfuscated cypher will be
+                            pretty printed in any case.
   -V, --version           Print version information and exit.
 ```
 

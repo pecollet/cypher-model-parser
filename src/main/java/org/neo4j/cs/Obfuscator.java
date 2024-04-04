@@ -24,8 +24,13 @@ public class Obfuscator implements Callable<Integer>  {
     @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect", defaultValue = "NEO4J_5", description = "The cypher dialect : [NEO4J_5|NEO4J_4]. Defaults to NEO4J_5.")
     private Dialect dialect;
 
+    @CommandLine.Option(names = { "-p", "--pretty" }, description = "Always pretty print the resulting cypher, even if no obfuscation took place. Obfuscated cypher will be pretty printed in any case.")
+    private boolean pretty;
+
     private Options options;
     private Configuration rendererConfig;
+
+    private boolean hasBeenMasked=false;
 
     Function<Expression, Expression> maskLiteral = e -> {
         if (e instanceof Literal) {
@@ -37,14 +42,17 @@ public class Obfuscator implements Callable<Integer>  {
                     return Cypher.literalOf(renderer.render(subStatement));
                 } catch (Exception ex) {
                     //otherwise, mask the string (general case)
+                    this.hasBeenMasked=true;
                     return Cypher.literalOf(OBFUSCATED_STRING);
                 }
             } else if (e instanceof NumberLiteral) {
                 //replace by nines (so it's still a valid number), keeping the same number of digits
                 String masked = "9".repeat(((NumberLiteral) e).asString().length());
                 long allNines = Long.parseLong(masked);
+                this.hasBeenMasked=true;
                 return Cypher.literalOf(allNines);
             }
+            //booleans are voluntarily left out as they're unlikely to hold sensitive information
         }
         return e;
     };
@@ -78,9 +86,15 @@ public class Obfuscator implements Callable<Integer>  {
             System.err.println("### [Exception] " + e + " : " +query );
         }
 
+        //if no masking took place, we way want to just return the original query as-is, to avoid unnecessary formatting changes
+        if (hasBeenMasked || pretty) {
+            System.out.println(result);
+            return 0;
+        } else {
+            System.out.println(query);
+            return 1;
+        }
 
-        System.out.println(result);
-        return 0;
     }
 
     public static void main(String... args) {

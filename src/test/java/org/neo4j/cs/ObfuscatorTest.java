@@ -67,7 +67,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute(query, "-p");
             });
             assertEquals("MATCH (n:Label)\n" +
                     "WHERE n.name = true\n" +
@@ -85,8 +85,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("MATCH (n:Label)-[:TYPE*2..5]->()\n" +
-                    "RETURN n\n" , outText);
+            assertEquals("MATCH (n:Label)-[:TYPE*2..5]->() RETURN n\n" , outText);
         });
         assertEquals("", errText);
     }
