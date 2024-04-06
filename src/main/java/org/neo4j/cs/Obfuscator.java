@@ -9,6 +9,10 @@ import picocli.CommandLine;
 
 import java.util.concurrent.Callable;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.neo4j.cs.QueryFilter.*;
 
 
 @CommandLine.Command(name = "Obfuscator", mixinStandardHelpOptions = true, versionProvider = ManifestVersionProvider.class,
@@ -31,6 +35,8 @@ public class Obfuscator implements Callable<Integer>  {
     private Configuration rendererConfig;
 
     private boolean hasBeenMasked=false;
+
+    private String prefix="";
 
     Function<Expression, Expression> maskLiteral = e -> {
         if (e instanceof Literal) {
@@ -57,6 +63,34 @@ public class Obfuscator implements Callable<Integer>  {
         return e;
     };
 
+
+    String cleanupQuery(String query) {
+        query = query.replaceAll("<br>", "\n").trim();
+        //deal with EXPLAIN/PROFILE
+        Pattern pattern = Pattern.compile("(?i)"+ "^(PROFILE|EXPLAIN)\s(.*)$");
+        Matcher matcher = pattern.matcher(query);
+        if (matcher.find()) {
+            this.prefix+=matcher.group(1).trim().toUpperCase() +"\n";
+            query=matcher.group(2);
+        }
+        //also with CYPHER prefix
+        Pattern pattern2 = Pattern.compile("(?i)^("+ prefixRegex_CYPHER
+                + prefixRegex_PLANNER
+                + prefixRegex_CCPLANNER
+                + prefixRegex_UPDATESTRATEGY
+                + prefixRegex_RUNTIME
+                + prefixRegex_EXPRESSIONENGINE
+                + prefixRegex_OPERATORENGINE
+                + prefixRegex_IPF
+                + prefixRegex_REPLAN+")(.*)$");
+        Matcher matcher2 = pattern2.matcher(query);
+        if (matcher2.find()) {
+            this.prefix+=matcher2.group(1).trim().toUpperCase()  +"\n";
+            query=matcher2.group(2);
+        }
+        return query;
+    }
+
     @Override
     public Integer call() throws Exception {
         String result=query;
@@ -71,7 +105,7 @@ public class Obfuscator implements Callable<Integer>  {
                 .build();
 
         try {
-            var statement = CypherParser.parse(query.replaceAll("<br>", "\n"), this.options);
+            var statement = CypherParser.parse(cleanupQuery(query), this.options);
 
             var renderer = Renderer.getRenderer(this.rendererConfig);
 
@@ -88,10 +122,10 @@ public class Obfuscator implements Callable<Integer>  {
 
         //if no masking took place, we way want to just return the original query as-is, to avoid unnecessary formatting changes
         if (hasBeenMasked || pretty) {
-            System.out.println(result);
+            System.out.println(prefix+result);
             return 0;
         } else {
-            System.out.println(query);
+            System.out.println(prefix+query);
             return 1;
         }
 

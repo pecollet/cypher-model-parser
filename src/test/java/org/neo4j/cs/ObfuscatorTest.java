@@ -123,4 +123,52 @@ public class ObfuscatorTest {
         });
         assertTrue(errText.contains("CyperDslParseException"));
     }
+
+    @Test
+    void shouldObfuscateParallel() throws Exception {
+        String query="CYPHER RUNTIME=PARALLEL MATCH (n:Label) WHERE n.name = 'something' RETURN n";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("CYPHER RUNTIME=PARALLEL\n" +
+                    "MATCH (n:Label)\n" +
+                    "WHERE n.name = '****'\n" +
+                    "RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateExplain() throws Exception {
+        String query="EXPLAIN MATCH (n:Label) WHERE n.name = 'something' RETURN n";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("EXPLAIN\n" +
+                    "MATCH (n:Label)\n" +
+                    "WHERE n.name = '****'\n" +
+                    "RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateProfile() throws Exception {
+        String query="Profile MATCH (n:Label) WHERE n.name = 'something' RETURN n";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("PROFILE\n" +
+                    "MATCH (n:Label)\n" +
+                    "WHERE n.name = '****'\n" +
+                    "RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
 }

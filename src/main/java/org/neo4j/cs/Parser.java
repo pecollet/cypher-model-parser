@@ -151,7 +151,7 @@ public class Parser implements Callable<Integer> {
     private boolean isDotAvailable() {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder("dot", "-V");
-            Process process = processBuilder.start();
+            Process process = processBuilder.inheritIO().start();
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 System.out.println("DOT found.");
@@ -159,7 +159,7 @@ public class Parser implements Callable<Integer> {
             }
         } catch (IOException | InterruptedException e) {
             // Exception occurred, command is not present or couldn't be executed
-            System.out.println("Exception occurred while checking if DOT is present: " + e.getMessage());
+            System.out.println("Could not find DOT: " + e.getMessage());
         }
         return false;
     }
