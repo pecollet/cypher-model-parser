@@ -151,7 +151,7 @@ public class Parser implements Callable<Integer> {
     private boolean isDotAvailable() {
         try {
             ProcessBuilder processBuilder = new ProcessBuilder("dot", "-V");
-            Process process = processBuilder.inheritIO().start();
+            Process process = processBuilder.redirectErrorStream(true).inheritIO().start();
             int exitCode = process.waitFor();
             if (exitCode == 0) {
                 System.out.println("DOT found.");
