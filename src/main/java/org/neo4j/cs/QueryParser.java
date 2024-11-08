@@ -166,7 +166,7 @@ public class QueryParser {
         this.errors = 0;
         Model fullModel = new Model();
         //iterate over queries
-        System.out.println("Parsing queries...");
+        System.out.print("Parsing queries... ");
         for(String q : queries) {
             fullModel.add(parseQuery(q));
         }

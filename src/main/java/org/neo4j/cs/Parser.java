@@ -95,7 +95,7 @@ public class Parser implements Callable<Integer> {
 
 
     private static void saveJson(Object o, String filePath) {
-        System.out.println("Saving to JSON...");
+        System.out.print("Saving to JSON... ");
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             objectMapper.writeValue(new File(filePath), o);
@@ -117,7 +117,7 @@ public class Parser implements Callable<Integer> {
 
         SourceStringReader reader = new SourceStringReader(plantUmlStr);
         try {
-            System.out.println("Saving to plantUML text format...");
+            System.out.print("Saving to plantUML text format... ");
             BufferedWriter writer = new BufferedWriter(new FileWriter(filePath));
             writer.write(plantUmlStr);
             writer.close();
@@ -126,14 +126,14 @@ public class Parser implements Callable<Integer> {
             if (imageFormat != null ) {
                 //generate Image
                 String imageFileSuffix = "." +imageFormat.name().toLowerCase(Locale.ROOT);
-                System.out.println("Saving to "+imageFormat.name()+"...");
+                System.out.print("Saving to "+imageFormat.name()+"... ");
                 OutputStream os = new FileOutputStream(new File(filePath + imageFileSuffix));
                 FileFormatOption option = new FileFormatOption(imageFormat);
                 try {
                     String desc = reader.outputImage(os, option).getDescription();
                     System.out.println("Successfully written "+imageFormat.name()+" to "+ filePath + imageFileSuffix + " "+ desc);
                 } catch (Exception e) {
-                    System.out.println("XXX");
+                    System.out.println("Failed to save image.");
                 }
 
                 os.close();
@@ -154,12 +154,12 @@ public class Parser implements Callable<Integer> {
             Process process = processBuilder.redirectErrorStream(true).inheritIO().start();
             int exitCode = process.waitFor();
             if (exitCode == 0) {
-                System.out.println("DOT found.");
+                //System.out.println("DOT found.");
                 return true;
             }
         } catch (IOException | InterruptedException e) {
             // Exception occurred, command is not present or couldn't be executed
-            System.out.println("Could not find DOT: " + e.getMessage());
+            //System.out.println("Could not find DOT: " + e.getMessage());
         }
         return false;
     }
