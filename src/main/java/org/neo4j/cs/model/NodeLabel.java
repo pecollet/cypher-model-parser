@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @ToString(callSuper=true)
-@EqualsAndHashCode
+@EqualsAndHashCode(callSuper = false)
 public class NodeLabel extends EntityType {
     @NonNull
     @Getter
