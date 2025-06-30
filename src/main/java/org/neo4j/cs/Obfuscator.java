@@ -25,7 +25,7 @@ public class Obfuscator implements Callable<Integer>  {
     @CommandLine.Parameters(index = "0", description = "The query to obfuscate")
     private String query;
 
-    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect", defaultValue = "NEO4J_5", description = "The cypher dialect : [NEO4J_5_23|NEO4J_5|NEO4J_4]. Defaults to NEO4J_5.")
+    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect", defaultValue = "NEO4J_5_26", description = "The cypher dialect : [NEO4J_5_26|NEO4J_5_23|NEO4J_5|NEO4J_4]. Defaults to NEO4J_5_26.")
     private Dialect dialect;
 
     @CommandLine.Option(names = { "-p", "--pretty" }, description = "Always pretty print the resulting cypher, even if no obfuscation took place. Obfuscated cypher will be pretty printed in any case.")
