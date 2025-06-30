@@ -50,4 +50,12 @@ public class QueryParserTest {
         assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
         assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
     }
+
+//    @Test
+//    void shouldInferPropertyQuery() {
+//        Model m = new QueryParser().parseQuery("MATCH (l:Left)-[:HAS]-(:Right) RETURN 5 as x, toUpper(l.name) as y");
+//        Set expectedProperties = new HashSet<String>();
+//        expectedProperties.add(new Property("name", "String"));
+//        assertEquals(expectedProperties, m.getNodeLabels().get("Left").getProperties());
+//    }
 }
