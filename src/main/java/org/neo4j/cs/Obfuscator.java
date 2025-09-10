@@ -7,6 +7,8 @@ import org.neo4j.cypherdsl.core.renderer.Renderer;
 import org.neo4j.cypherdsl.parser.*;
 import picocli.CommandLine;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 import java.util.regex.Matcher;
@@ -22,8 +24,17 @@ public class Obfuscator implements Callable<Integer>  {
     private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
 
 
-    @CommandLine.Parameters(index = "0", description = "The query to obfuscate")
+//    @CommandLine.Parameters(description = "The query to obfuscate")
+//    private String query;
+
+    @CommandLine.Option(names = { "-q", "--query" }, description = "The query to obfuscate.")
     private String query;
+
+    @CommandLine.Option(names = { "-f", "--file" }, description = "File containing the query to obfuscate.")
+    private Path file;
+
+    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query.")
+    private Path outputFile;
 
     @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect", defaultValue = "NEO4J_5_23", description = "The cypher dialect : [NEO4J_5_26|NEO4J_5_23|NEO4J_5|NEO4J_4]. Defaults to NEO4J_5_23.")
     private Dialect dialect;
@@ -93,7 +104,21 @@ public class Obfuscator implements Callable<Integer>  {
 
     @Override
     public Integer call() throws Exception {
-        String result=query;
+        if (query == null && file == null) {
+            System.err.println("One of the options -q or -f must be specified.");
+            System.exit(8);
+        }
+        if (query != null && file != null) {
+            System.err.println("Only one of the options -q or -f can be specified.");
+            System.exit(9);
+        }
+        String q;
+        if (file != null) {
+            q = Files.readString(file);
+        } else {
+            q = query;
+        }
+        String result=q;
         this.rendererConfig = Configuration.newConfig()
                 .alwaysEscapeNames(false)
                 .withPrettyPrint(true)
@@ -105,7 +130,7 @@ public class Obfuscator implements Callable<Integer>  {
                 .build();
 
         try {
-            var statement = CypherParser.parse(cleanupQuery(query), this.options);
+            var statement = CypherParser.parse(cleanupQuery(q), this.options);
 
             var renderer = Renderer.getRenderer(this.rendererConfig);
 
@@ -113,11 +138,11 @@ public class Obfuscator implements Callable<Integer>  {
             result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
 
         } catch (CyperDslParseException e) {
-            System.err.println("### [CyperDslParseException] " + e + " : " +query );
+            System.err.println("### [CyperDslParseException] " + e + " : " +q );
         } catch (UnsupportedCypherException e) {
-            System.err.println("### [UnsupportedCypherException] " + e + " : " +query );
+            System.err.println("### [UnsupportedCypherException] " + e + " : " +q );
         } catch (Exception e) {
-            System.err.println("### [Exception] " + e + " : " +query );
+            System.err.println("### [Exception] " + e + " : " +q );
         }
 
         //if no masking took place, we way want to just return the original query as-is, to avoid unnecessary formatting changes
@@ -125,7 +150,7 @@ public class Obfuscator implements Callable<Integer>  {
             System.out.println(prefix+result);
             return 0;
         } else {
-            System.out.println(prefix+query);
+            System.out.println(prefix+q);
             return 1;
         }
 
