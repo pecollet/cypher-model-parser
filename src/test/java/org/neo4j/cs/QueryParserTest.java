@@ -9,10 +9,28 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class QueryParserTest {
+
+    @Test
+    void shouldIdentifyObfuscatedQueries() {
+        var p = new QueryParser();
+        assertFalse(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN n"));
+        assertTrue(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n"));
+        assertTrue(p.isObfuscated("MATCH(s:Stuff)-[:IS******..******]->(:Class) RETURN n"));
+    }
+
+    @Test
+    void shouldDeobfuscate() {
+        var p = new QueryParser();
+        assertEquals(
+                "MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  123456 RETURN n",
+                p.preProcessObfuscatedQuery("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n")
+                );
+        assertTrue(true);
+    }
+
     @Test
     void shouldParseQueries() {
         List<String> queries = new ArrayList<>();
@@ -50,6 +68,22 @@ public class QueryParserTest {
         assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
         assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
     }
+
+//    @Test
+//    void shouldParseQuery2() {
+//        var p = new QueryParser();
+//        Model m = p.parseQuery2("MATCH (l:Left)-[:HAS]-(:Right) WHERE l.name = 'sdf' RETURN toUpper(l.id) as x");
+////        System.out.println(m);
+//        Set expectedNodeLabels = new HashSet<String>();
+//        expectedNodeLabels.add("Left");
+//        expectedNodeLabels.add("Right");
+//
+//        Set expectedRelTypes = new HashSet<String>();
+//        expectedRelTypes.add("HAS");
+//
+//        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+//        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+//    }
 
 //    @Test
 //    void shouldInferPropertyQuery() {
