@@ -6,7 +6,7 @@
 
     <groupId>org.neo4j.cs</groupId>
     <artifactId>cypher-model-parser</artifactId>
-    <version>0.6.1</version>
+    <version>0.6.2</version>
     <organization>
         <name>Neo4j</name>
         <url>https://neo4j.com</url>
@@ -23,13 +23,18 @@
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-cypher-dsl</artifactId>
-            <version>2024.7.1</version>
+            <version>2025.0.1</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-cypher-dsl-parser</artifactId>
-            <version>2024.7.1</version>
+            <version>2025.0.1</version>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>org.neo4j</groupId>-->
+<!--            <artifactId>neo4j-cypher</artifactId>-->
+<!--            <version>5.26.8</version>-->
+<!--        </dependency>-->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
