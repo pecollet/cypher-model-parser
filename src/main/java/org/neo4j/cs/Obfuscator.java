@@ -146,13 +146,20 @@ public class Obfuscator implements Callable<Integer>  {
         }
 
         //if no masking took place, we way want to just return the original query as-is, to avoid unnecessary formatting changes
+        String outputString;
+        int returnCode;
         if (hasBeenMasked || pretty) {
-            System.out.println(prefix+result);
-            return 0;
+            outputString = prefix+result;
+            returnCode=0;
         } else {
-            System.out.println(prefix+q);
-            return 1;
+            outputString = prefix+q;
+            returnCode=1;
         }
+        System.out.println(outputString);
+        if (outputFile != null) {
+            Files.writeString(outputFile, outputString);
+        }
+        return returnCode;
 
     }
 
