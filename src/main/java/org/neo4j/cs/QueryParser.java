@@ -3,6 +3,8 @@ package org.neo4j.cs;
 import lombok.Getter;
 import org.neo4j.cs.model.*;
 import org.neo4j.cs.model.NodeLabel;
+//import org.neo4j.cypher.internal.ast.SingleQuery;
+//import org.neo4j.cypher.internal.ast.factory.neo4j.JavaCCParser;
 import org.neo4j.cypherdsl.core.*;
 import org.neo4j.cypherdsl.core.StatementCatalog.PropertyFilter;
 import org.neo4j.cypherdsl.core.StatementCatalog.Property;
@@ -202,14 +204,35 @@ public class QueryParser {
         return fullModel;
     }
 
-    private boolean isObfuscated(String query) {
+    public boolean isObfuscated(String query) {
         return query.contains("******");
     }
 
-    private String preProcessObfuscatedQuery(String query) {
+    public String preProcessObfuscatedQuery(String query) {
         return query.replaceAll("\\*\\*\\*\\*\\*\\*", "123456");
     }
-
+//    public Model parseQuery2(String query) {
+//        Model queryModel = new Model();
+//        Map<String, NodeLabel> nodeLabels = new HashMap<>();
+//        Map<String, RelationshipType> relationshipTypes = new HashMap<>();
+//
+//        if (isObfuscated(query)) {
+//            query = preProcessObfuscatedQuery(query);
+//        }
+//        try {
+//            SingleQuery sq_ast = null;
+//            var ast = JavaCCParser.parse(query, null, null);
+//            if(ast instanceof SingleQuery) {
+//                sq_ast = (SingleQuery) ast;
+//            }
+//            //scala.collection.Iterator<Clause> clauseIterator = sq_ast.clauses().iterator();
+//
+//        } catch (Exception e) {
+//            System.err.println("### [Exception] " + e + " : " +shortenQueryForLogging(query) );
+//            this.errors+=1;
+//        }
+//        return null;
+//    }
     public Model parseQuery(String query) {
         Model queryModel = new Model();
         //System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
