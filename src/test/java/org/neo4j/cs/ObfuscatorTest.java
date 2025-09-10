@@ -20,7 +20,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("MATCH (n:Label)\n" +
                     "WHERE n.name = '****'\n" +
@@ -35,7 +35,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("MATCH (n:Label)\n" +
                     "WHERE (n.name = ****\n" +
@@ -52,7 +52,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("MATCH (n:Label)\n" +
                     "WHERE n.name = ******\n" +
@@ -67,7 +67,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query, "-p");
+                new CommandLine(new Obfuscator()).execute("-q", query, "-p");
             });
             assertEquals("MATCH (n:Label)\n" +
                     "WHERE n.name = true\n" +
@@ -83,7 +83,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("MATCH (n:Label)-[:TYPE*2..5]->() RETURN n\n" , outText);
         });
@@ -96,7 +96,7 @@ public class ObfuscatorTest {
         String query="CALL apoc.periodic.iterate('MATCH (p:Person) WHERE p.id = 12 RETURN p', 'SET p:Actor', {batchSize:10000, parallel:true})";
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("CALL apoc.periodic.iterate('MATCH (p:Person)\n" +
                     "WHERE p.id = **\n" +
@@ -115,7 +115,7 @@ public class ObfuscatorTest {
                 "RETURN this { .username, .codes } AS this";
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("WITH apoc.cypher.runFirstColumn(******, {auth: $auth, lid: $lid}, ******) as x\n" +
                     "UNWIND x as this\n" +
@@ -130,7 +130,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("CYPHER RUNTIME=PARALLEL\n" +
                     "MATCH (n:Label)\n" +
@@ -146,7 +146,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("EXPLAIN\n" +
                     "MATCH (n:Label)\n" +
@@ -162,7 +162,7 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute("-q", query);
             });
             assertEquals("PROFILE\n" +
                     "MATCH (n:Label)\n" +
@@ -171,4 +171,6 @@ public class ObfuscatorTest {
         });
         assertEquals("", errText);
     }
+
+
 }
