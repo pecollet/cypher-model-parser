@@ -4,3 +4,4 @@ model.puml
 model.puml.svg
 model.json
 *.iml
+.DS_Store
