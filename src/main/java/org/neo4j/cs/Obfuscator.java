@@ -23,15 +23,26 @@ public class Obfuscator implements Callable<Integer>  {
 
     private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
 
+    @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
+    InputCypherQuery input; // require exactly one: CYPHER or -f FILE
+
+    static class InputCypherQuery {
+        @CommandLine.Parameters(description = "The query to obfuscate", paramLabel = "CYPHER")
+        String query;
+
+        @CommandLine.Option(names = {"-f", "--file"}, paramLabel = "CYPHER_FILE",
+                description = "Read CYPHER query from this file")
+        Path file;
+    }
 
 //    @CommandLine.Parameters(description = "The query to obfuscate")
 //    private String query;
 
-    @CommandLine.Option(names = { "-q", "--query" }, description = "The query to obfuscate.")
-    private String query;
-
-    @CommandLine.Option(names = { "-f", "--file" }, description = "File containing the query to obfuscate.")
-    private Path file;
+//    @CommandLine.Option(names = { "-q", "--query" }, description = "The query to obfuscate.")
+//    private String query;
+//
+//    @CommandLine.Option(names = { "-f", "--file" }, description = "File containing the query to obfuscate.")
+//    private Path file;
 
     @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query.")
     private Path outputFile;
@@ -104,20 +115,18 @@ public class Obfuscator implements Callable<Integer>  {
 
     @Override
     public Integer call() throws Exception {
-        if (query == null && file == null) {
-            System.err.println("One of the options -q or -f must be specified.");
-            System.exit(8);
-        }
-        if (query != null && file != null) {
-            System.err.println("Only one of the options -q or -f can be specified.");
-            System.exit(9);
-        }
-        String q;
-        if (file != null) {
-            q = Files.readString(file);
-        } else {
-            q = query;
-        }
+//        if (query == null && file == null) {
+//            System.err.println("One of the options -q or -f must be specified.");
+//            System.exit(8);
+//        }
+//        if (query != null && file != null) {
+//            System.err.println("Only one of the options -q or -f can be specified.");
+//            System.exit(9);
+//        }
+        String q = (input.query != null)
+                ? input.query
+                : Files.readString(input.file).trim();
+
         String result=q;
         this.rendererConfig = Configuration.newConfig()
                 .alwaysEscapeNames(false)
