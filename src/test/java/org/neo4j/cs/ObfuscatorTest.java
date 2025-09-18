@@ -1,7 +1,11 @@
 package org.neo4j.cs;
 
 import org.junit.jupiter.api.Test;
+import org.neo4j.cypherdsl.parser.CypherParser;
 import picocli.CommandLine;
+
+import java.nio.file.Files;
+import java.nio.file.Paths;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemErr;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized;
@@ -171,6 +175,77 @@ public class ObfuscatorTest {
         });
         assertEquals("", errText);
     }
+
+    @Test
+    void shouldObfuscateFromFile() throws Exception {
+        String inputFile="src/test/resources/query_to_obfuscate.txt";
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute("-f", inputFile, "-p");
+            });
+            assertEquals("RETURN ***\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateIntoFile() throws Exception {
+        String cypher="  RETURN 123 ";
+        String outputFile = "src/test/resources/shouldObfuscateIntoFile_output.txt";
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(cypher, "-p", "-o", outputFile);
+            });
+            //read outputFile and assert its content
+            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateBetweenFile() throws Exception {
+        String inputFile="src/test/resources/query_to_obfuscate.txt";
+        String outputFile = "src/test/resources/shouldObfuscateIntoFile_output.txt";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute("-f", inputFile, "-p", "-o", outputFile);
+            });
+            //read outputFile and assert its content
+            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
+        });
+        assertEquals("", errText);
+    }
+
+//    @Test
+//    void shouldObfuscateOrderByWithoutNPE() throws Exception {
+//        String cypher="""
+//                MATCH (c:Content)
+//                WITH c WHERE c.name = 3
+//                ORDER BY c.publishedDate
+//                RETURN c
+//                """;
+//        String cypher2="""
+//                MATCH (c:Content)
+//                ORDER BY c.publishedDate
+//                RETURN c
+//                """;
+//
+//        String errText = tapSystemErr(() -> {
+//            String outText = tapSystemOutNormalized(() -> {
+//                new CommandLine(new Obfuscator()).execute(cypher, "-p");
+//            });
+////            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
+//        });
+//        assertEquals("", errText);
+//        errText = tapSystemErr(() -> {
+//            String outText = tapSystemOutNormalized(() -> {
+//                new CommandLine(new Obfuscator()).execute(cypher2, "-p");
+//            });
+////            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
+//        });
+//        assertEquals("", errText);
+//    }
 
 
 }

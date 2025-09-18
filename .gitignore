@@ -5,3 +5,4 @@ model.puml.svg
 model.json
 *.iml
 .DS_Store
+src/test/resources/shouldObfuscateIntoFile_output.txt
