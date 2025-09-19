@@ -9,15 +9,15 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class QueryFilter {
-    protected static String prefixRegex_CYPHER="CYPHER\s+";
-    protected static String prefixRegex_PLANNER="(?:planner=(?:cost|idp|dp)\s+)?";
-    protected static String prefixRegex_CCPLANNER="(?:connectComponentsPlanner=(?:greedy|idp)\s+)?";
-    protected static String prefixRegex_UPDATESTRATEGY="(?:updateStrategy=(?:default|eager)\s+)?";
-    protected static String prefixRegex_RUNTIME="(?:runtime=(?:interpreted|pipelined|slotted|parallel)\s+)?";
-    protected static String prefixRegex_EXPRESSIONENGINE="(?:expressionEngine=(?:compiled|interpreted|default)\s+)?";
-    protected static String prefixRegex_OPERATORENGINE="(?:operatorEngine=(?:compiled|interpreted|default)\s+)?";
-    protected static String prefixRegex_IPF="(?:interpretedPipesFallback=(?:default|disabled|whitelisted_plans_only|all)\s+)?";
-    protected static String prefixRegex_REPLAN="(?:replan=(?:default|force|skip)\s+)?";
+    protected static String prefixRegex_CYPHER="CYPHER\\s+(?:[0-9]+\\s+)?";
+    protected static String prefixRegex_PLANNER="(?:planner=(?:cost|idp|dp)\\s+)?";
+    protected static String prefixRegex_CCPLANNER="(?:connectComponentsPlanner=(?:greedy|idp)\\s+)?";
+    protected static String prefixRegex_UPDATESTRATEGY="(?:updateStrategy=(?:default|eager)\\s+)?";
+    protected static String prefixRegex_RUNTIME="(?:runtime=(?:interpreted|pipelined|slotted|parallel)\\s+)?";
+    protected static String prefixRegex_EXPRESSIONENGINE="(?:expressionEngine=(?:compiled|interpreted|default)\\s+)?";
+    protected static String prefixRegex_OPERATORENGINE="(?:operatorEngine=(?:compiled|interpreted|default)\\s+)?";
+    protected static String prefixRegex_IPF="(?:interpretedPipesFallback=(?:default|disabled|whitelisted_plans_only|all)\\s+)?";
+    protected static String prefixRegex_REPLAN="(?:replan=(?:default|force|skip)\\s+)?";
 
     public List<String> filter(List<String> queries) {
         return queries.stream()
@@ -32,7 +32,7 @@ public class QueryFilter {
                 )
                 //CYPHER modifiers are not supported by cypherDSL, so remove them
                 .map(q -> q.replaceAll(
-                                "(?i)^"+ prefixRegex_CYPHER
+                                "(?is)^"+ prefixRegex_CYPHER
                                             + prefixRegex_PLANNER
                                             + prefixRegex_CCPLANNER
                                             + prefixRegex_UPDATESTRATEGY

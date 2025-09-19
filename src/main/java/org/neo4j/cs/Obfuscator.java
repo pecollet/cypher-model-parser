@@ -89,7 +89,7 @@ public class Obfuscator implements Callable<Integer>  {
     String cleanupQuery(String query) {
         query = query.replaceAll("<br>", "\n").trim();
         //deal with EXPLAIN/PROFILE
-        Pattern pattern = Pattern.compile("(?i)"+ "^(PROFILE|EXPLAIN)\s(.*)$");
+        Pattern pattern = Pattern.compile("(?is)"+ "^(PROFILE|EXPLAIN)\\s(.*)$");
         Matcher matcher = pattern.matcher(query);
         if (matcher.find()) {
             this.prefix+=matcher.group(1).trim().toUpperCase() +"\n";

@@ -145,9 +145,25 @@ public class ObfuscatorTest {
     }
 
     @Test
-    void shouldObfuscateExplain() throws Exception {
-        String query="EXPLAIN MATCH (n:Label) WHERE n.name = 'something' RETURN n";
+    void shouldObfuscateCypher25() throws Exception {
+        String query="CYPHER 25<br>MATCH (n:Label) WHERE n.name = 'something' RETURN n";
 
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("CYPHER 25\n" +
+                    "MATCH (n:Label)\n" +
+                    "WHERE n.name = '****'\n" +
+                    "RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateExplain() throws Exception {
+        String query="EXPLAIN MATCH (n:Label) WHERE n.name = 'something'<br>RETURN n";
+        
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);

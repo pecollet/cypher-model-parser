@@ -11,7 +11,7 @@ public class QueryFilterTest {
     @Test
     void shouldFilterExplainQueries() {
         List<String> queries = new ArrayList<>();
-        queries.add("EXPLAIN MATCH(n) RETURN n");
+        queries.add("EXPLAIN MATCH(n) <br>RETURN n");
         queries.add("  EXPLAIN   MATCH(n) RETURN n");
         List<String> filtered =  new QueryFilter().filter(queries);
         assertTrue(filtered.isEmpty());
@@ -51,11 +51,15 @@ public class QueryFilterTest {
         queries.add("CYPHER runtime=interpreted MATCH(x) RETURN x");
         queries.add(" CYPHER   runtime=PARALLEL   MATCH(y) RETURN y");
         queries.add("CYPHER RUNTIME=SLOTTED   expressionEngine=INTERPRETED MATCH(z) RETURN z");
+        queries.add("CYPHER 5  MATCH(a:Cypher5) RETURN a");
+        queries.add("CYPHER 25  MATCH(a:Cypher25) RETURN a");
         List<String> filtered =  new QueryFilter().filter(queries);
         assertTrue(filtered.contains("MATCH(n) RETURN n"));
         assertTrue(filtered.contains("MATCH(x) RETURN x"));
         assertTrue(filtered.contains("MATCH(y) RETURN y"));
         assertTrue(filtered.contains("MATCH(z) RETURN z"));
+        assertTrue(filtered.contains("MATCH(a:Cypher5) RETURN a"));
+        assertTrue(filtered.contains("MATCH(a:Cypher25) RETURN a"));
     }
 
 }
