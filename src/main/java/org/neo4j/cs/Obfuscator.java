@@ -89,7 +89,7 @@ public class Obfuscator implements Callable<Integer>  {
     String cleanupQuery(String query) {
         query = query.replaceAll("<br>", "\n").trim();
         //deal with EXPLAIN/PROFILE
-        Pattern pattern = Pattern.compile("(?i)"+ "^(PROFILE|EXPLAIN)\s(.*)$");
+        Pattern pattern = Pattern.compile("(?is)"+ "^(PROFILE|EXPLAIN)\\s(.*)$");
         Matcher matcher = pattern.matcher(query);
         if (matcher.find()) {
             this.prefix+=matcher.group(1).trim().toUpperCase() +"\n";
@@ -149,7 +149,9 @@ public class Obfuscator implements Callable<Integer>  {
         } catch (CyperDslParseException e) {
             System.err.println("### [CyperDslParseException] " + e + " : " +q );
         } catch (UnsupportedCypherException e) {
-            System.err.println("### [UnsupportedCypherException] " + e + " : " +q );
+            System.err.println("### [UnsupportedCypherException] " + e + " : " + q);
+        } catch (RuntimeException e){
+            System.err.println("### [RuntimeException] " + e + " : " +e.getCause());
         } catch (Exception e) {
             System.err.println("### [Exception] " + e + " : " +q );
         }
@@ -166,7 +168,7 @@ public class Obfuscator implements Callable<Integer>  {
         }
         System.out.println(outputString);
         if (outputFile != null) {
-            Files.writeString(outputFile, outputString);
+            Files.writeString(outputFile, outputString+'\n');
         }
         return returnCode;
 
