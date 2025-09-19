@@ -6,7 +6,7 @@
 
     <groupId>org.neo4j.cs</groupId>
     <artifactId>cypher-model-parser</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <organization>
         <name>Neo4j</name>
         <url>https://neo4j.com</url>
