@@ -1,0 +1,1 @@
+MATCH (s:Supplier)-[:IS_VENDOR]->(:Purchase_orders|Tollers_orders)-[:PLACED_IN]->(:Site),<br>      (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)<br>RETURN *

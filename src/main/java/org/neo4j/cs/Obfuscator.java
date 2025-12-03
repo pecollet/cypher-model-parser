@@ -9,10 +9,13 @@ import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import static org.neo4j.cs.QueryFilter.*;
 
@@ -21,6 +24,14 @@ import static org.neo4j.cs.QueryFilter.*;
         description = "Obfuscate literal values in cypher query.")
 public class Obfuscator implements Callable<Integer>  {
 
+    static class Dialects extends ArrayList<String> {
+        Dialects() {
+            super( Arrays.stream(Dialect.values())
+                    .map(Dialect::name)
+                    .collect(Collectors.toList())
+            );
+        }
+    }
     private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
@@ -47,7 +58,7 @@ public class Obfuscator implements Callable<Integer>  {
     @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query.")
     private Path outputFile;
 
-    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect", defaultValue = "NEO4J_5_23", description = "The cypher dialect : [NEO4J_5_26|NEO4J_5_23|NEO4J_5|NEO4J_4]. Defaults to NEO4J_5_23.")
+    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Dialects.class, defaultValue = "NEO4J_5_23", description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to NEO4J_5_23.")
     private Dialect dialect;
 
     @CommandLine.Option(names = { "-p", "--pretty" }, description = "Always pretty print the resulting cypher, even if no obfuscation took place. Obfuscated cypher will be pretty printed in any case.")
