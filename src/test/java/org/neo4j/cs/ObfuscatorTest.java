@@ -1,7 +1,14 @@
 package org.neo4j.cs;
 
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
+import org.neo4j.cypherdsl.core.Expression;
+import org.neo4j.cypherdsl.core.renderer.Configuration;
+import org.neo4j.cypherdsl.core.renderer.Dialect;
+import org.neo4j.cypherdsl.core.renderer.Renderer;
 import org.neo4j.cypherdsl.parser.CypherParser;
+import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType;
+import org.neo4j.cypherdsl.parser.Options;
 import picocli.CommandLine;
 
 import java.nio.file.Files;
@@ -231,6 +238,33 @@ public class ObfuscatorTest {
             assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
         });
         assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateWithoutDroppingColons() throws Exception {
+        String inputFile="src/test/resources/obfuscate.01Q83ESPWX.input";
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute("-f", inputFile, "-p");
+            });
+            assertEquals("MATCH (s:Supplier)-[:IS_VENDOR]->(:Purchase_orders|Tollers_orders)-[:PLACED_IN]->(:Site), (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)\nRETURN *\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldRenderWithoutDroppingColons() throws Exception {
+        String cypher="MATCH (:PurchaseOrder|TollerOrder)-[:PLACED_IN]->(:Site), (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)\nRETURN *";
+        var statement = CypherParser.parse(cypher);
+        Configuration rendererConfig = Configuration.newConfig()
+                .alwaysEscapeNames(false)
+                .withPrettyPrint(true)
+                .withDialect(Dialect.NEO4J_5)
+                .build();
+        var renderer = Renderer.getRenderer(rendererConfig);
+
+        String result = renderer.render(statement);
+        assertEquals(cypher, result);
     }
 
 //    @Test
