@@ -3,8 +3,14 @@ package org.neo4j.cs;
 import lombok.Getter;
 import org.neo4j.cs.model.*;
 import org.neo4j.cs.model.NodeLabel;
-//import org.neo4j.cypher.internal.ast.SingleQuery;
-//import org.neo4j.cypher.internal.ast.factory.neo4j.JavaCCParser;
+
+import org.neo4j.cypher.internal.CypherVersion;
+import org.neo4j.cypher.internal.parser.AstParserFactory$;
+import org.neo4j.cypher.internal.parser.ast.AstParser;
+import org.neo4j.cypher.internal.util.CypherExceptionFactory;
+import org.neo4j.cs.CypherAstSchemaCollector;
+import org.neo4j.cs.CypherAstSchemaCollector.RelationshipDescriptorDTO;
+
 import org.neo4j.cypherdsl.core.*;
 import org.neo4j.cypherdsl.core.StatementCatalog.PropertyFilter;
 import org.neo4j.cypherdsl.core.StatementCatalog.Property;
@@ -14,9 +20,13 @@ import org.neo4j.cypherdsl.parser.CyperDslParseException;
 import org.neo4j.cypherdsl.parser.CypherParser;
 import org.neo4j.cypherdsl.parser.UnsupportedCypherException;
 
+import scala.Option;
+import scala.collection.immutable.Seq;
+import scala.jdk.javaapi.CollectionConverters;
 
 import java.util.*;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.neo4j.cypherdsl.core.StatementCatalog.Token.Type.NODE_LABEL;
@@ -211,28 +221,57 @@ public class QueryParser {
     public String preProcessObfuscatedQuery(String query) {
         return query.replaceAll("\\*\\*\\*\\*\\*\\*", "123456");
     }
-//    public Model parseQuery2(String query) {
-//        Model queryModel = new Model();
-//        Map<String, NodeLabel> nodeLabels = new HashMap<>();
-//        Map<String, RelationshipType> relationshipTypes = new HashMap<>();
-//
-//        if (isObfuscated(query)) {
-//            query = preProcessObfuscatedQuery(query);
-//        }
-//        try {
-//            SingleQuery sq_ast = null;
-//            var ast = JavaCCParser.parse(query, null, null);
-//            if(ast instanceof SingleQuery) {
-//                sq_ast = (SingleQuery) ast;
-//            }
-//            //scala.collection.Iterator<Clause> clauseIterator = sq_ast.clauses().iterator();
-//
-//        } catch (Exception e) {
-//            System.err.println("### [Exception] " + e + " : " +shortenQueryForLogging(query) );
-//            this.errors+=1;
-//        }
-//        return null;
-//    }
+
+    public AstParser getCypherParser(String cypher, CypherVersion version, CypherExceptionFactory exceptionFactory) {
+        var factory = AstParserFactory$.MODULE$.apply(version);
+        Option notificationLogger = Option.empty();
+        Seq semanticFeatures = scala.collection.immutable.Seq$.MODULE$.empty();
+
+        return factory.apply(cypher, exceptionFactory, notificationLogger, semanticFeatures);
+    }
+
+    public Model parseQuery2(String query) {
+        Model queryModel = new Model();
+        Map<String, NodeLabel> nodeLabels = new HashMap<>();
+        Map<String, RelationshipType> relationshipTypes = new HashMap<>();
+
+        if (isObfuscated(query)) {
+            query = preProcessObfuscatedQuery(query);
+        }
+        try {
+            AstParser parser = getCypherParser(query, CypherVersion.Cypher25, new SimpleCypherExceptionFactory());
+            org.neo4j.cypher.internal.ast.Statement statement = parser.singleStatement();
+            System.out.println(statement);
+            List<CypherAstSchemaCollector.RelationshipDescriptorDTO> rels =
+                    CypherAstSchemaCollector.collectRelationshipsDTO(statement);
+            System.out.println(rels);
+            Set<String> labels = CypherAstSchemaCollector.collectLabels(statement);
+//            Set<String> relTypes = CypherAstSchemaCollector.collectRelTypes(statement);
+
+            for (RelationshipDescriptorDTO r : rels) {
+                RelationshipType rt = new RelationshipType(r.relType());
+                rt.setSourceNodeLabels( new HashSet<>(r.sourceLabels()) );
+                rt.setTargetNodeLabels( new HashSet<>(r.targetLabels()) );
+                relationshipTypes.put(r.relType(), rt);
+            }
+            for (String label : labels) {
+                nodeLabels.put(label, new NodeLabel(label));
+            }
+
+            List<CypherAstSchemaCollector.PropertyDescriptorDTO> props =
+                    CypherAstSchemaCollector.collectPropertiesDTO(statement);
+//            Set<String> properties = CypherAstSchemaCollector.collectProperties(statement);
+            System.out.println(props);
+
+            queryModel.setNodeLabels(nodeLabels);
+            queryModel.setRelationshipTypes(relationshipTypes);
+        } catch (Exception e) {
+            System.err.println("### [Exception] " + e + " : " +shortenQueryForLogging(query) );
+            this.errors+=1;
+        }
+        return queryModel;
+    }
+
     public Model parseQuery(String query) {
         Model queryModel = new Model();
         //System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
@@ -242,7 +281,6 @@ public class QueryParser {
         if (isObfuscated(query)) {
             query = preProcessObfuscatedQuery(query);
         }
-
         //parse
         try {
             var statement = CypherParser.parse(query);
@@ -300,22 +338,22 @@ public class QueryParser {
             queryModel.setNodeLabels(nodeLabels);
             queryModel.setRelationshipTypes(relationshipTypes);
         } catch (CyperDslParseException e) {
-//            String parseExceptionText ="org.neo4j.cypherdsl.parser.internal.parser.javacc.ParseException:";
-//            String cause = e.getCause().toString();
-//            System.err.println("### [CyperDslParseException] " +
-//                    cause.replace(parseExceptionText, "")
-//                            .replaceAll("\n", " ")
-//                            .substring(0, Math.min(150, cause.length() - parseExceptionText.length()))
-//                    + " : " +shortenQueryForLogging(query)
-//            );
+            String parseExceptionText ="org.neo4j.cypherdsl.parser.internal.parser.javacc.ParseException:";
+            String cause = e.getCause().toString();
+            System.err.println("### [CyperDslParseException] " +
+                    cause.replace(parseExceptionText, "")
+                            .replaceAll("\n", " ")
+                            .substring(0, Math.min(150, cause.length() - parseExceptionText.length()))
+                    + " : " +shortenQueryForLogging(query)
+            );
             this.errors+=1;
         } catch (UnsupportedCypherException e) {
-//            String cause = e.getCause().toString();
-//            System.err.println("### [UnsupportedCypherException] " +
-//                    cause.replaceAll("\n", " ")
-//                    .substring(0, Math.min(100, cause.length()))
-//                    + " : " +shortenQueryForLogging(query)
-//            );
+            String cause = e.getCause().toString();
+            System.err.println("### [UnsupportedCypherException] " +
+                    cause.replaceAll("\n", " ")
+                    .substring(0, Math.min(100, cause.length()))
+                    + " : " +shortenQueryForLogging(query)
+            );
             this.errors+=1;
 //        } catch (NullPointerException npe) {
 //            this.errors+=1;

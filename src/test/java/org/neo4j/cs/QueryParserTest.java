@@ -19,6 +19,7 @@ public class QueryParserTest {
         assertFalse(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN n"));
         assertTrue(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n"));
         assertTrue(p.isObfuscated("MATCH(s:Stuff)-[:IS******..******]->(:Class) RETURN n"));
+        assertFalse(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN *"));
     }
 
     @Test
@@ -69,11 +70,12 @@ public class QueryParserTest {
         assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
     }
 
-//    @Test
-//    void shouldParseQuery2() {
-//        var p = new QueryParser();
-//        Model m = p.parseQuery2("MATCH (l:Left)-[:HAS]-(:Right) WHERE l.name = 'sdf' RETURN toUpper(l.id) as x");
-////        System.out.println(m);
+    @Test
+    void shouldParseQuery2() {
+        var p = new QueryParser();
+        Model m = p.parseQuery2("MATCH (l:Left {x: date(\"2025-02-18\")})<-[:HAS {since: [123]}]-(:Right {id: 'hhh', active : true}) WHERE l.name = 'sdf' RETURN toUpper(l.id) as x");
+//        Model m = p.parseQuery2("LET x = 1 MATCH (n:Node) WHERE n.name = x RETURN n");
+        System.out.println(m);
 //        Set expectedNodeLabels = new HashSet<String>();
 //        expectedNodeLabels.add("Left");
 //        expectedNodeLabels.add("Right");
@@ -83,7 +85,7 @@ public class QueryParserTest {
 //
 //        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
 //        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
-//    }
+    }
 
 //    @Test
 //    void shouldInferPropertyQuery() {

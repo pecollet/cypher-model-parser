@@ -3,6 +3,7 @@ package org.neo4j.cs;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.neo4j.cypherdsl.core.Expression;
+import org.neo4j.cypherdsl.core.StatementCatalog;
 import org.neo4j.cypherdsl.core.renderer.Configuration;
 import org.neo4j.cypherdsl.core.renderer.Dialect;
 import org.neo4j.cypherdsl.core.renderer.Renderer;
@@ -13,6 +14,7 @@ import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemErr;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized;
@@ -266,6 +268,26 @@ public class ObfuscatorTest {
         String result = renderer.render(statement);
         assertEquals(cypher, result);
     }
+
+//    @Test
+//    void shouldObfuscateCypher25Syntaxes() throws Exception {
+//        ArrayList<String> queries = new ArrayList<>();
+//        queries.add("LET n = 1 RETURN n");
+//        queries.add("RETURN 0 NEXT RETURN 1");
+//
+//        for (String query : queries) {
+//            var statement = CypherParser.parse(query);
+//            Configuration rendererConfig = Configuration.newConfig()
+//                    .alwaysEscapeNames(false)
+//                    .withPrettyPrint(true)
+//                    .withDialect(Dialect.NEO4J_5_23  )
+//                    .build();
+//            var renderer = Renderer.getRenderer(rendererConfig);
+//
+//            String result = renderer.render(statement);
+//            assertEquals(query, result);
+//        }
+//    }
 
 //    @Test
 //    void shouldObfuscateOrderByWithoutNPE() throws Exception {
