@@ -262,6 +262,13 @@ public class QueryParser {
                     CypherAstSchemaCollector.collectPropertiesDTO(statement);
 //            Set<String> properties = CypherAstSchemaCollector.collectProperties(statement);
             System.out.println(props);
+            for (CypherAstSchemaCollector.PropertyDescriptorDTO prop : props) {
+                if (prop.ownerIsNode()) {
+                    nodeLabels.get(prop.ownerName()).addProperty(prop.propertyKey(), prop.propertyType());
+                } else {
+                    relationshipTypes.get(prop.ownerName()).addProperty(prop.propertyKey(), prop.propertyType());
+                }
+            }
 
             queryModel.setNodeLabels(nodeLabels);
             queryModel.setRelationshipTypes(relationshipTypes);
