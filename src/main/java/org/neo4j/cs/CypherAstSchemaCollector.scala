@@ -478,18 +478,18 @@ object CypherAstSchemaCollector {
       ownerName     = p.ownerName,
       propertyKey   = p.propertyKey,
       propertyType  = p.propertyType.map {
-        case StringType  => "STRING"
-        case IntegerType => "INTEGER"
-        case FloatType  => "DECIMAL"
-        case BooleanType => "BOOLEAN"
-        case DateType => "DATE"
-        case LocalTimeType => "TIME"
-        case ZonedTimeType => "TIME"
-        case LocalDateTimeType => "TIME"
-        case ZonedDateTimeType => "TIME"
-        case DurationType => "TIME"
-        case PointType  => "POINT"
-        case ListType    => "LIST"
+        case StringType  => "String"
+        case IntegerType => "Number"
+        case FloatType  => "Number"
+        case BooleanType => "Boolean"
+        case DateType => "Date"
+        case LocalTimeType => "Time"
+        case ZonedTimeType => "Time"
+        case LocalDateTimeType => "Time"
+        case ZonedDateTimeType => "Time"
+        case DurationType => "Duration"
+        case PointType  => "Point"
+        case ListType    => "List"
         case UnknownType => "UNKNOWN"
       }.getOrElse("UNKNOWN")
     )

@@ -3,6 +3,7 @@ package org.neo4j.cs;
 import org.junit.jupiter.api.Test;
 import org.neo4j.cs.model.Model;
 import org.neo4j.cs.model.Property;
+import scala.sys.Prop;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -56,12 +57,15 @@ public class QueryParserTest {
         assertEquals(expectedProperties, m.getNodeLabels().get("Thing").getProperties());
     }
     @Test
-    void shouldParseQuery() {
-        Model m = new QueryParser().parseQuery("MATCH (:Left)-[:HAS]-(:Right) RETURN *");
+    void shouldParseQuery_labelsAndTypes() {
+        Model m = new QueryParser().parseQuery("MATCH (:Left|Alt&!Alt2)-[:HAS]-(r:Right) WHERE r:Other RETURN *");
 //        System.out.println(m);
         Set expectedNodeLabels = new HashSet<String>();
         expectedNodeLabels.add("Left");
         expectedNodeLabels.add("Right");
+        expectedNodeLabels.add("Other");
+        expectedNodeLabels.add("Alt");
+        expectedNodeLabels.add("Alt2");
 
         Set expectedRelTypes = new HashSet<String>();
         expectedRelTypes.add("HAS");
@@ -71,20 +75,43 @@ public class QueryParserTest {
     }
 
     @Test
-    void shouldParseQuery2() {
+    void shouldParseQuery_cypher25() {
         var p = new QueryParser();
-        Model m = p.parseQuery2("MATCH (l:Left {x: date(\"2025-02-18\")})<-[:HAS {since: [123]}]-(:Right {id: 'hhh', active : true}) WHERE l.name = 'sdf' RETURN toUpper(l.id) as x");
-//        Model m = p.parseQuery2("LET x = 1 MATCH (n:Node) WHERE n.name = x RETURN n");
+        Model m = p.parseQuery("LET x = 1 MATCH (n:Node) WHERE n.name = x RETURN n");
         System.out.println(m);
-//        Set expectedNodeLabels = new HashSet<String>();
-//        expectedNodeLabels.add("Left");
-//        expectedNodeLabels.add("Right");
-//
-//        Set expectedRelTypes = new HashSet<String>();
-//        expectedRelTypes.add("HAS");
-//
-//        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-//        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Node");
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+    }
+    @Test
+    void shouldParseQuery_properties() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (l:Left {x: date(\"2025-02-18\")})<-[:HAS {since: [123]}]-(:Right {id: 'hhh', active : true}) WHERE l.name = 'sdf' RETURN toUpper(l.id) as x");
+        System.out.println(m);
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Left");
+        expectedNodeLabels.add("Right");
+
+        Set expectedRelTypes = new HashSet<String>();
+        expectedRelTypes.add("HAS");
+
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("x", "Date"));
+        expectedProperties.add(new Property("name", "String"));
+        expectedProperties.add(new Property("id", "String"));
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Left").getProperties());
+
+        expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("active", "Boolean"));
+        expectedProperties.add(new Property("id", "String"));
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Right").getProperties());
+
+        expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("since", "List"));
+        assertEquals(expectedProperties,  m.getRelationshipTypes().get("HAS").getProperties());
     }
 
 //    @Test
