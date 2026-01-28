@@ -3,7 +3,7 @@ package org.neo4j.cs
 import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.expressions.{BooleanLiteral, DecimalDoubleLiteral, DoubleLiteral, Expression, FunctionInvocation, IntegerLiteral, LabelName, ListLiteral, LogicalVariable, MapExpression, NodePattern, Property, RelTypeName, RelationshipChain, RelationshipPattern, SemanticDirection, SignedDecimalIntegerLiteral, StringLiteral, Variable}
 import org.neo4j.cypher.internal.util.Foldable
-import org.neo4j.cypher.internal.label_expressions.LabelExpression
+import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
 import org.neo4j.cypher.internal.label_expressions.LabelExpression._
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
 import org.neo4j.cypherdsl.core.ListExpression
@@ -85,7 +85,45 @@ object CypherAstSchemaCollector {
   private val emptyAcc = Acc(Map.empty, Map.empty, Vector.empty)
 
   def collect(root: ASTNode): Result = {
-    root.folder.treeFold(Result(Set.empty, Set.empty, Set.empty)) {
+    final case class TokAcc(
+                             nodeVars: Map[String, Set[String]],
+                             relVars: Map[String, Set[String]],
+                             labels: Set[String],
+                             relTypes: Set[String],
+                             properties: Set[String]
+                           )
+
+    def tokName(n: Any): Option[String] = n match {
+      case LabelName(name) => Some(name)
+      case RelTypeName(name) => Some(name)
+      case lor: LabelOrRelTypeName => Some(lor.name)
+      case _ => None
+    }
+    val init = TokAcc(Map.empty, Map.empty, Set.empty, Set.empty, Set.empty)
+    val out =root.folder.treeFold(init) {
+      case node: NodePattern =>
+        acc => {
+          val labels = nodeLabels(node)
+          val newNodeVars = node.variable match {
+            case Some(v: LogicalVariable) =>
+              val existing = acc.nodeVars.getOrElse(v.name, Set.empty)
+              acc.nodeVars.updated(v.name, existing ++ labels)
+            case _ => acc.nodeVars
+          }
+          TraverseChildren(acc.copy(nodeVars = newNodeVars, labels = acc.labels ++ labels))
+        }
+
+      case relPat: RelationshipPattern =>
+        acc => {
+          val types = relationshipTypes(relPat)
+          val newRelVars = relPat.variable match {
+            case Some(v: LogicalVariable) =>
+              val existing = acc.relVars.getOrElse(v.name, Set.empty)
+              acc.relVars.updated(v.name, existing ++ types)
+            case _ => acc.relVars
+          }
+          TraverseChildren(acc.copy(relVars = newRelVars, relTypes = acc.relTypes ++ types))
+        }
 
       case LabelName(name) =>
         acc => Foldable.TraverseChildren(acc.copy(labels = acc.labels + name))
@@ -93,17 +131,34 @@ object CypherAstSchemaCollector {
       case RelTypeName(name) =>
         acc => Foldable.TraverseChildren(acc.copy(relTypes = acc.relTypes + name))
 
+      case LabelExpressionPredicate(Variable(v), le) =>
+        acc => {
+          val labelsOrTypes = extractNamesFromLabelExpression(le)
+          val isNode = acc.nodeVars.contains(v)
+          val isRel = acc.relVars.contains(v)
+
+          val (labels, relTypes) =
+            if (isNode && !isRel) (labelsOrTypes, Set.empty[String])
+            else if (!isNode && isRel) (Set.empty[String], labelsOrTypes)
+            else (Set.empty[String], Set.empty[String])
+
+          val newAcc = acc.copy(
+            labels = acc.labels ++ labels,
+            relTypes = acc.relTypes ++ relTypes
+          )
+
+          TraverseChildren(newAcc)
+        }
+
       case Property(expr, key) =>
         //need to also get the property owner entity
         acc => Foldable.TraverseChildren(acc.copy(properties = acc.properties + key.name))
     }
+    Result(out.labels, out.relTypes, out.properties)
   }
   // ----- Public API you call from Java -----
   def collectLabels(root: ASTNode): JSet[String] =
     collect(root).labels.asJava
-
-  def collectRelTypes(root: ASTNode): JSet[String] =
-    collect(root).relTypes.asJava
 
   /**
    * Collect properties (labels/rel-types -> property keys) and perform a best-effort type inference
@@ -501,6 +556,7 @@ object CypherAstSchemaCollector {
   private def extractNamesFromLabelExpression(expr: LabelExpression): Set[String] = expr match {
     case Leaf(LabelName(name), bool)    => Set(name)
     case Leaf(RelTypeName(name), bool)  => Set(name)
+    case Leaf(LabelOrRelTypeName(name), bool)  => Set(name)
 
     case Conjunctions(children, bool)   => children.flatMap(extractNamesFromLabelExpression).toSet
     case Disjunctions(children, bool)   => children.flatMap(extractNamesFromLabelExpression).toSet

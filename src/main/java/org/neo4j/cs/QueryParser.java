@@ -230,7 +230,7 @@ public class QueryParser {
         return factory.apply(cypher, exceptionFactory, notificationLogger, semanticFeatures);
     }
 
-    public Model parseQuery2(String query) {
+    public Model parseQuery(String query) {
         Model queryModel = new Model();
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
@@ -279,7 +279,7 @@ public class QueryParser {
         return queryModel;
     }
 
-    public Model parseQuery(String query) {
+    public Model parseQueryOld(String query) {
         Model queryModel = new Model();
         //System.out.println("QUERY = " +query.substring(0, Math.min(query.length(), 100)).replaceAll("\n", " "));
         Map<String, NodeLabel> nodeLabels = new HashMap<>();

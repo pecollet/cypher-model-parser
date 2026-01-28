@@ -59,7 +59,7 @@ public class QueryParserTest {
     @Test
     void shouldParseQuery_labelsAndTypes() {
         Model m = new QueryParser().parseQuery("MATCH (:Left|Alt&!Alt2)-[:HAS]-(r:Right) WHERE r:Other RETURN *");
-//        System.out.println(m);
+        System.out.println(m);
         Set expectedNodeLabels = new HashSet<String>();
         expectedNodeLabels.add("Left");
         expectedNodeLabels.add("Right");
