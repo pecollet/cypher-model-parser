@@ -142,12 +142,9 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("CALL apoc.periodic.iterate('MATCH (p:Person)\n" +
-                    "WHERE p.id = **\n" +
-                    "RETURN p', 'SET p:Actor', {\n" +
-                    "  batchSize: *****,\n" +
-                    "  parallel: true\n" +
-                    "})\n" , outText);
+            assertEquals("CALL apoc.periodic.iterate('MATCH (p:Person) " +
+                    "WHERE p.id = **** RETURN p', 'SET p:Actor', " +
+                    "{batchSize:****, parallel:true})\n" , outText);
         });
         assertEquals("", errText);
     }

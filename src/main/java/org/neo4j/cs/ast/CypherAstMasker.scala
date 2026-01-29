@@ -4,8 +4,6 @@ import org.neo4j.cypher.internal.expressions._
 import org.neo4j.cypher.internal.util.ASTNode
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
 
-
-
 object CypherAstMasker {
 
   /**
@@ -15,72 +13,106 @@ object CypherAstMasker {
    * then compute the literal token length by scanning the original Cypher string.
    *
    * We replace each literal token with '*' repeated to the same length, preserving formatting and offsets.
+   *
+   * @param cypher The original cypher query string
+   * @param root The AST root of the query
+   * @param parse A callback to parse nested Cypher strings (e.g. for APOC). Returns None if the string is not valid Cypher.
    */
-  def maskLiterals(cypher: String, root: ASTNode): String = {
+  def maskLiterals(cypher: String, root: ASTNode, parse: String => Option[ASTNode] = _ => None): String = {
     final case class Span(start: Int, endExclusive: Int)
 
-    def scanStringLiteral(start: Int): Int = {
-      // Cypher string literals use single quotes and escape a quote by doubling it: 'it''s'
-      if (start < 0 || start >= cypher.length) return start
-      val quote = cypher.charAt(start)
-      if (quote != '\'' && quote != '"') return start
-      var i = start + 1
-      while (i < cypher.length) {
-        val c = cypher.charAt(i)
-        if (c == quote) {
-          // doubled quote => escaped quote, consume both
-          if (i + 1 < cypher.length && cypher.charAt(i + 1) == quote) i += 2
-          else return i + 1
-        } else i += 1
+    // Helper method to collect spans recursively
+    def collectSpans(text: String, ast: ASTNode): Vector[Span] = {
+
+      def scanStringLiteral(start: Int): Int = {
+        if (start < 0 || start >= text.length) return start
+        val quote = text.charAt(start)
+        if (quote != '\'' && quote != '"') return start
+        var i = start + 1
+        while (i < text.length) {
+          val c = text.charAt(i)
+          if (c == quote) {
+            // doubled quote => escaped quote, consume both
+            if (i + 1 < text.length && text.charAt(i + 1) == quote) i += 2
+            else return i + 1
+          } else i += 1
+        }
+        text.length
       }
-      cypher.length
-    }
 
-    def scanNumberLiteral(start: Int): Int = {
-      if (start < 0 || start >= cypher.length) return start
-      var i = start
-      def isNumChar(ch: Char): Boolean =
-        (ch >= '0' && ch <= '9') || ch == '+' || ch == '-' || ch == '.' || ch == 'e' || ch == 'E' || ch == '_'
-      while (i < cypher.length && isNumChar(cypher.charAt(i))) i += 1
-      i
-    }
-
-    def scanWord(start: Int): Int = {
-      if (start < 0 || start >= cypher.length) return start
-      var i = start
-      def isAlpha(ch: Char): Boolean =
-        (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
-      while (i < cypher.length && isAlpha(cypher.charAt(i))) i += 1
-      i
-    }
-
-    def spanForLiteral(start: Int, lit: Expression): Option[Span] = {
-      if (start < 0 || start >= cypher.length) return None
-
-      lit match {
-        case _: StringLiteral =>
-          val end = scanStringLiteral(start)
-          if (end > start) Some(Span(start, end)) else None
-
-        case _: IntegerLiteral | _: SignedDecimalIntegerLiteral | _: DoubleLiteral | _: DecimalDoubleLiteral =>
-          val end = scanNumberLiteral(start)
-          if (end > start) Some(Span(start, end)) else None
-
-        // Do not mask list/map literals as a whole—children literals will be masked individually.
-        case _ => None
+      def scanNumberLiteral(start: Int): Int = {
+        if (start < 0 || start >= text.length) return start
+        var i = start
+        def isNumChar(ch: Char): Boolean =
+          (ch >= '0' && ch <= '9') || ch == '+' || ch == '-' || ch == '.' || ch == 'e' || ch == 'E' || ch == '_'
+        while (i < text.length && isNumChar(text.charAt(i))) i += 1
+        i
       }
-    }
 
-    val spans = root.folder.treeFold(Vector.empty[Span]) {
-      case lit: Literal =>
-        acc => {
+      def scanWord(start: Int): Int = {
+        if (start < 0 || start >= text.length) return start
+        var i = start
+        def isAlpha(ch: Char): Boolean =
+          (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
+        while (i < text.length && isAlpha(text.charAt(i))) i += 1
+        i
+      }
+
+      def spanForLiteral(start: Int, lit: Expression): Option[Span] = {
+        if (start < 0 || start >= text.length) return None
+
+        lit match {
+          case _: StringLiteral =>
+            val end = scanStringLiteral(start)
+            if (end > start) Some(Span(start, end)) else None
+
+          case _: IntegerLiteral | _: SignedDecimalIntegerLiteral | _: DoubleLiteral | _: DecimalDoubleLiteral =>
+            val end = scanNumberLiteral(start)
+            if (end > start) Some(Span(start, end)) else None
+
+          // Do not mask list/map literals as a whole—children literals will be masked individually.
+          case _ => None
+        }
+      }
+
+      ast.folder.treeFold(Vector.empty[Span]) {
+        // Special handling for Strings: Check if they contain nested Cypher (e.g. APOC)
+        case lit: StringLiteral => acc =>
+          val maybeInnerAst = parse(lit.value)
+          maybeInnerAst match {
+            case Some(innerRoot) =>
+              // Recursively find spans in the inner query
+              val innerSpans = collectSpans(lit.value, innerRoot)
+
+              // Shift inner spans to match the outer string coordinates.
+              // We assume standard quoting where content starts at position + 1.
+              // Note: This simple shift assumes the string does not rely on complex backslash escaping for the query structure.
+              val offsetShift = lit.position.offset + 1
+              val shiftedSpans = innerSpans.map(s => Span(s.start + offsetShift, s.endExclusive + offsetShift))
+
+              TraverseChildren(acc ++ shiftedSpans)
+
+            case None =>
+              // Standard literal masking
+              val start = lit.position.offset
+              spanForLiteral(start, lit) match {
+                case Some(s) => TraverseChildren(acc :+ s)
+                case None    => TraverseChildren(acc)
+              }
+          }
+
+        // Generic catch-all for other Literals (Numbers, Booleans)
+        // This replaces the previous explicit list of types which was failing to match.
+        case lit: Literal => acc =>
           val start = lit.position.offset
           spanForLiteral(start, lit) match {
             case Some(s) => TraverseChildren(acc :+ s)
             case None    => TraverseChildren(acc)
           }
-        }
+      }
     }
+
+    val spans = collectSpans(cypher, root)
 
     // Replace from right to left to keep offsets stable.
     val sorted = spans.distinct.sortBy(_.start)(Ordering.Int.reverse)
@@ -88,12 +120,11 @@ object CypherAstMasker {
     val sb = new StringBuilder(cypher)
     sorted.foreach { s =>
       if (s.start >= 0 && s.endExclusive <= sb.length && s.endExclusive > s.start) {
-        val len = s.endExclusive - s.start
+//        val len = s.endExclusive - s.start
         sb.replace(s.start, s.endExclusive, "*" * 4)
       }
     }
 
     sb.toString
   }
-
 }
