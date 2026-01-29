@@ -1,5 +1,10 @@
 package org.neo4j.cs;
 
+import org.neo4j.cs.ast.AstUtils;
+import org.neo4j.cs.ast.CypherAstMasker;
+import org.neo4j.cs.ast.SimpleCypherExceptionFactory;
+import org.neo4j.cypher.internal.CypherVersion;
+import org.neo4j.cypher.internal.parser.ast.AstParser;
 import org.neo4j.cypherdsl.core.*;
 import org.neo4j.cypherdsl.core.renderer.Configuration;
 import org.neo4j.cypherdsl.core.renderer.Dialect;
@@ -150,17 +155,19 @@ public class Obfuscator implements Callable<Integer>  {
                 .build();
 
         try {
-            var statement = CypherParser.parse(cleanupQuery(q), this.options);
+            var cleanQuery = cleanupQuery(q);
+//            var statement = CypherParser.parse(cleanQuery, this.options);
+//            var renderer = Renderer.getRenderer(this.rendererConfig);
+//            //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
+//            result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
+            AstParser parser = AstUtils.getCypherParser(cleanQuery, CypherVersion.Cypher25, new SimpleCypherExceptionFactory());
+            org.neo4j.cypher.internal.ast.Statement statement = parser.singleStatement();
+            result = CypherAstMasker.maskLiterals(cleanQuery, statement);
 
-            var renderer = Renderer.getRenderer(this.rendererConfig);
-
-            //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
-            result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
-
-        } catch (CyperDslParseException e) {
-            System.err.println("### [CyperDslParseException] " + e + " : " +q );
-        } catch (UnsupportedCypherException e) {
-            System.err.println("### [UnsupportedCypherException] " + e + " : " + q);
+//        } catch (CyperDslParseException e) {
+//            System.err.println("### [CyperDslParseException] " + e + " : " +q );
+//        } catch (UnsupportedCypherException e) {
+//            System.err.println("### [UnsupportedCypherException] " + e + " : " + q);
         } catch (RuntimeException e){
             System.err.println("### [RuntimeException] " + e + " : " +e.getCause());
         } catch (Exception e) {
@@ -170,13 +177,13 @@ public class Obfuscator implements Callable<Integer>  {
         //if no masking took place, we way want to just return the original query as-is, to avoid unnecessary formatting changes
         String outputString;
         int returnCode;
-        if (hasBeenMasked || pretty) {
+//        if (hasBeenMasked || pretty) {
             outputString = prefix+result;
             returnCode=0;
-        } else {
-            outputString = prefix+q;
-            returnCode=1;
-        }
+//        } else {
+//            outputString = prefix+q;
+//            returnCode=1;
+//        }
         System.out.println(outputString);
         if (outputFile != null) {
             Files.writeString(outputFile, outputString+'\n');

@@ -1,16 +1,13 @@
-package org.neo4j.cs
+package org.neo4j.cs.ast
 
-import org.neo4j.cypher.internal.util.ASTNode
-import org.neo4j.cypher.internal.expressions.{BooleanLiteral, DecimalDoubleLiteral, DoubleLiteral, Expression, FunctionInvocation, IntegerLiteral, LabelName, ListLiteral, LogicalVariable, MapExpression, NodePattern, Property, RelTypeName, RelationshipChain, RelationshipPattern, SemanticDirection, SignedDecimalIntegerLiteral, StringLiteral, Variable}
-import org.neo4j.cypher.internal.util.Foldable
-import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
+import org.neo4j.cypher.internal.expressions._
 import org.neo4j.cypher.internal.label_expressions.LabelExpression._
+import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
+import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
-import org.neo4j.cypherdsl.core.ListExpression
 
 import java.util.{List => JList, Set => JSet}
 import scala.jdk.CollectionConverters._
-import org.neo4j.cypher.internal.expressions._
 
 
 

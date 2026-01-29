@@ -1,15 +1,15 @@
 package org.neo4j.cs;
 
 import lombok.Getter;
+import org.neo4j.cs.ast.AstUtils;
+import org.neo4j.cs.ast.SimpleCypherExceptionFactory;
 import org.neo4j.cs.model.*;
 import org.neo4j.cs.model.NodeLabel;
 
 import org.neo4j.cypher.internal.CypherVersion;
-import org.neo4j.cypher.internal.parser.AstParserFactory$;
 import org.neo4j.cypher.internal.parser.ast.AstParser;
-import org.neo4j.cypher.internal.util.CypherExceptionFactory;
-import org.neo4j.cs.CypherAstSchemaCollector;
-import org.neo4j.cs.CypherAstSchemaCollector.RelationshipDescriptorDTO;
+import org.neo4j.cs.ast.CypherAstSchemaCollector;
+import org.neo4j.cs.ast.CypherAstSchemaCollector.RelationshipDescriptorDTO;
 
 import org.neo4j.cypherdsl.core.*;
 import org.neo4j.cypherdsl.core.StatementCatalog.PropertyFilter;
@@ -20,13 +20,8 @@ import org.neo4j.cypherdsl.parser.CyperDslParseException;
 import org.neo4j.cypherdsl.parser.CypherParser;
 import org.neo4j.cypherdsl.parser.UnsupportedCypherException;
 
-import scala.Option;
-import scala.collection.immutable.Seq;
-import scala.jdk.javaapi.CollectionConverters;
-
 import java.util.*;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.neo4j.cypherdsl.core.StatementCatalog.Token.Type.NODE_LABEL;
@@ -222,13 +217,7 @@ public class QueryParser {
         return query.replaceAll("\\*\\*\\*\\*\\*\\*", "123456");
     }
 
-    public AstParser getCypherParser(String cypher, CypherVersion version, CypherExceptionFactory exceptionFactory) {
-        var factory = AstParserFactory$.MODULE$.apply(version);
-        Option notificationLogger = Option.empty();
-        Seq semanticFeatures = scala.collection.immutable.Seq$.MODULE$.empty();
 
-        return factory.apply(cypher, exceptionFactory, notificationLogger, semanticFeatures);
-    }
 
     public Model parseQuery(String query) {
         Model queryModel = new Model();
@@ -239,7 +228,7 @@ public class QueryParser {
             query = preProcessObfuscatedQuery(query);
         }
         try {
-            AstParser parser = getCypherParser(query, CypherVersion.Cypher25, new SimpleCypherExceptionFactory());
+            AstParser parser = AstUtils.getCypherParser(query, CypherVersion.Cypher25, new SimpleCypherExceptionFactory());
             org.neo4j.cypher.internal.ast.Statement statement = parser.singleStatement();
             System.out.println(statement);
             List<CypherAstSchemaCollector.RelationshipDescriptorDTO> rels =

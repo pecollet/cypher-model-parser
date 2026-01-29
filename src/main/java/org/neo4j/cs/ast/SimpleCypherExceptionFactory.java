@@ -1,4 +1,4 @@
-package org.neo4j.cs;
+package org.neo4j.cs.ast;
 
 import org.neo4j.cypher.internal.util.CypherExceptionFactory;
 import org.neo4j.cypher.internal.util.InputPosition;
