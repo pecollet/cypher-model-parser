@@ -49,7 +49,7 @@ public class Obfuscator implements Callable<Integer>  {
     @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query.")
     private Path outputFile;
 
-    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Dialects.class, defaultValue = "5", description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to 5.")
+    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Dialects.class, defaultValue = "25", description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to 25.")
     private CypherVersion dialect;
 
     @CommandLine.Option(names = { "-p", "--pretty" }, description = "Always pretty print the resulting cypher, even if no obfuscation took place. Obfuscated cypher will be pretty printed in any case.")

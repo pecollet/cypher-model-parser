@@ -167,14 +167,16 @@ public class QueryParser {
 //        functionTypeMapping.put("Duration", durationFunctions);
 //        functionTypeMapping.put("Point", pointFunctions);
     }
-
     public Model parseQueries(List<String> queries) {
+        return this.parseQueries(queries, CypherVersion.Cypher25);
+    }
+    public Model parseQueries(List<String> queries, CypherVersion version) {
         this.errors = 0;
         Model fullModel = new Model();
         //iterate over queries
         System.out.print("Parsing queries... ");
         for(String q : queries) {
-            fullModel.add(parseQuery(q));
+            fullModel.add(parseQuery(q, version));
         }
 
         if (queries.size() > 0) {
@@ -217,8 +219,10 @@ public class QueryParser {
     }
 
 
-
     public Model parseQuery(String query) {
+        return this.parseQuery(query, CypherVersion.Cypher25);
+    }
+    public Model parseQuery(String query, CypherVersion version) {
         Model queryModel = new Model();
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
@@ -227,7 +231,7 @@ public class QueryParser {
             query = preProcessObfuscatedQuery(query);
         }
         try {
-            AstParser parser = AstUtils.getCypherParser(query, CypherVersion.Cypher25, new SimpleCypherExceptionFactory());
+            AstParser parser = AstUtils.getCypherParser(query, version, new SimpleCypherExceptionFactory());
             org.neo4j.cypher.internal.ast.Statement statement = parser.singleStatement();
             System.out.println(statement);
             List<CypherAstSchemaCollector.RelationshipDescriptorDTO> rels =
