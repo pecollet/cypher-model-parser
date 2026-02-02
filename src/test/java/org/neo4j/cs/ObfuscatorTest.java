@@ -2,25 +2,13 @@ package org.neo4j.cs;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.neo4j.cypherdsl.core.Expression;
-import org.neo4j.cypherdsl.core.StatementCatalog;
-import org.neo4j.cypherdsl.core.renderer.Configuration;
-import org.neo4j.cypherdsl.core.renderer.Dialect;
-import org.neo4j.cypherdsl.core.renderer.Renderer;
-import org.neo4j.cypherdsl.parser.CypherParser;
-import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType;
-import org.neo4j.cypherdsl.parser.Options;
 import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemErr;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized;
-
-
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -197,9 +185,22 @@ public class ObfuscatorTest {
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
-                new CommandLine(new Obfuscator()).execute(query);
+                new CommandLine(new Obfuscator()).execute(query, "-d", "25");
             });
             assertEquals("LET x = **** MATCH (n:Label) WHERE n.name = x RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateRemovedV4Syntax() throws Exception {
+        String query="MATCH (n:Label) WHERE exists(n.name) AND distance(n.prop, point({x:0, y:0})) > 12 RETURN 12 as x";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query );
+            });
+            assertEquals("MATCH (n:Label) WHERE exists(n.name) AND distance(n.prop, point({x:****, y:****})) > **** RETURN **** as x\n", outText);
         });
         assertEquals("", errText);
     }
@@ -283,20 +284,6 @@ public class ObfuscatorTest {
         assertEquals("", errText);
     }
 
-    @Test
-    void shouldRenderWithoutDroppingColons() throws Exception {
-        String cypher="MATCH (:PurchaseOrder|TollerOrder)-[:PLACED_IN]->(:Site), (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)\nRETURN *";
-        var statement = CypherParser.parse(cypher);
-        Configuration rendererConfig = Configuration.newConfig()
-                .alwaysEscapeNames(false)
-                .withPrettyPrint(true)
-                .withDialect(Dialect.NEO4J_5)
-                .build();
-        var renderer = Renderer.getRenderer(rendererConfig);
-
-        String result = renderer.render(statement);
-        assertEquals(cypher, result);
-    }
 
 //    @Test
 //    void shouldObfuscateCypher25Syntaxes() throws Exception {
