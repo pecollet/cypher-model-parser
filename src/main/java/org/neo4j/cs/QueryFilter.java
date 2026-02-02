@@ -1,6 +1,6 @@
 package org.neo4j.cs;
 
-import org.neo4j.cypherdsl.core.StatementCatalog;
+//import org.neo4j.cypherdsl.core.StatementCatalog;
 
 import java.util.List;
 import java.util.Locale;

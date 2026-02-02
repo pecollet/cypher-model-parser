@@ -1,10 +1,11 @@
 package org.neo4j.cs.ast
 
+import org.neo4j.cypher.internal.ast.IsNormalized
 import org.neo4j.cypher.internal.expressions._
 import org.neo4j.cypher.internal.label_expressions.LabelExpression._
 import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
-import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
+import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 
 import java.util.{List => JList, Set => JSet}
 import scala.jdk.CollectionConverters._
@@ -357,6 +358,30 @@ object CypherAstSchemaCollector {
       Seq.empty
   }
 
+  def handleVarVsLiteralExpression(lhs: Expression, rhs: Expression) = {
+    (env: Env) => {
+      val env1 = (inferType(lhs), propRef(rhs)) match {
+        case (Some(t), Some(p)) => env.addType(p, t)
+        case _                  => env
+      }
+      val env2 = (inferType(rhs), propRef(lhs)) match {
+        case (Some(t), Some(p)) => env1.addType(p, t)
+        case _                  => env1
+      }
+      Foldable.TraverseChildren(env2)
+    }
+  }
+  def handleTypedExpression(lhs: Expression, rhs: Expression, literalType: PropertyType) = {
+    (env: Env) =>
+      val e1 = propRef(lhs).map(p => env.addType(p, literalType)).getOrElse(env)
+      val e2 = propRef(rhs).map(p => e1.addType(p, literalType)).getOrElse(e1)
+      Foldable.TraverseChildren(e2)
+  }
+  def handleUnaryTypedExpression(inner: Expression, literalType: PropertyType) = {
+    (env: Env) =>
+      Foldable.TraverseChildren(propRef(inner).map(p => env.addType(p, literalType)).getOrElse(env))
+  }
+
 
   /**
    * Walk expressions and collect type constraints for property references.
@@ -366,66 +391,36 @@ object CypherAstSchemaCollector {
     root.folder.treeFold(initial) {
 
       // equality / comparison: propagate literal types to the opposite side
-      case Equals(lhs, rhs) =>
-        env => {
-          val env1 = (literalType(lhs), propRef(rhs)) match {
-            case (Some(t), Some(p)) => env.addType(p, t)
-            case _ => env
-          }
-          val env2 = (literalType(rhs), propRef(lhs)) match {
-            case (Some(t), Some(p)) => env1.addType(p, t)
-            case _ => env1
-          }
-          Foldable.TraverseChildren(env2)
-        }
-
-      // string predicates
-      case Contains(lhs, rhs) =>
-        env =>
-          val e1 = propRef(lhs).map(p => env.addType(p, StringType)).getOrElse(env)
-          val e2 = propRef(rhs).map(p => e1.addType(p, StringType)).getOrElse(e1)
-          Foldable.TraverseChildren(e2)
-
-      case StartsWith(lhs, rhs) =>
-        env =>
-          val e1 = propRef(lhs).map(p => env.addType(p, StringType)).getOrElse(env)
-          val e2 = propRef(rhs).map(p => e1.addType(p, StringType)).getOrElse(e1)
-          Foldable.TraverseChildren(e2)
-
-      case EndsWith(lhs, rhs) =>
-        env =>
-          val e1 = propRef(lhs).map(p => env.addType(p, StringType)).getOrElse(env)
-          val e2 = propRef(rhs).map(p => e1.addType(p, StringType)).getOrElse(e1)
-          Foldable.TraverseChildren(e2)
-
-      // IN: if right is list literal, propagate element type to lhs
+    case Equals(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case NotEquals(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case LessThan(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case LessThanOrEqual(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case GreaterThan(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case GreaterThanOrEqual(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case Add(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case Subtract(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case Multiply(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case Divide(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case Concatenate(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      // some operators imply a type on both side
+      case Modulo(lhs, rhs) => handleTypedExpression(lhs, rhs, IntegerType)
+      case Pow(lhs, rhs) => handleTypedExpression(lhs, rhs, IntegerType)
+      case Or(lhs, rhs) => handleTypedExpression(lhs, rhs, BooleanType)
+      case And(lhs, rhs) => handleTypedExpression(lhs, rhs, BooleanType)
+      case Xor(lhs, rhs) => handleTypedExpression(lhs, rhs, BooleanType)
+      case StartsWith(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
+      case EndsWith(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
+      case Contains(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
+      case RegexMatch(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
+      //IN : implies only for rhs
       case In(lhs, rhs) =>
         env =>
-          val env1 = rhs match {
-            case list: ListLiteral =>
-              val elemTypes = list.expressions.flatMap(literalType).toSet
-              propRef(lhs).map { p =>
-                elemTypes.foldLeft(env)((e, t) => e.addType(p, t))
-              }.getOrElse(env)
-            case _ => env
-          }
-          Foldable.TraverseChildren(env1)
-
-      // boolean ops: require boolean operands
-      case And(lhs, rhs) =>
-        env =>
-          val e1 = propRef(lhs).map(p => env.addType(p, BooleanType)).getOrElse(env)
-          val e2 = propRef(rhs).map(p => e1.addType(p, BooleanType)).getOrElse(e1)
+          val e2 = propRef(rhs).map(p => env.addType(p, ListType)).getOrElse(env)
           Foldable.TraverseChildren(e2)
-
-      case Or(lhs, rhs) =>
-        env =>
-          val e1 = propRef(lhs).map(p => env.addType(p, BooleanType)).getOrElse(env)
-          val e2 = propRef(rhs).map(p => e1.addType(p, BooleanType)).getOrElse(e1)
-          Foldable.TraverseChildren(e2)
-
-      case Not(inner) =>
-        env => Foldable.TraverseChildren(propRef(inner).map(p => env.addType(p, BooleanType)).getOrElse(env))
+      // some unary operators imply a type
+      case Not(inner) => handleUnaryTypedExpression(inner, BooleanType)
+      case UnarySubtract(inner) => handleUnaryTypedExpression(inner, IntegerType)
+      case IsNormalized(inner, _) => handleUnaryTypedExpression(inner, StringType)
 
       // function calls: constrain argument types for known functions
       case f: FunctionInvocation =>
@@ -440,25 +435,40 @@ object CypherAstSchemaCollector {
     val name = f.functionName.name.toLowerCase(java.util.Locale.ROOT)
 
     name match {
-      case "toupper" | "tolower" | "touppercase" | "tolowercase" | "toUpper" | "toLower" =>
+      case "upper"| "lower" | "toupper" | "tolower" | "ltrim" | "rtrim"
+         | "char_length" | "character_length"|"left"|"right"|"normalize"
+         | "replace" | "split" | "substring" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, StringType)
           case None => env
         }
 
-      case "date" =>
-        // date(...) returns DATE; argument might be string/params — we conservatively do not force arg type
-        env
-
-      case "tointeger" | "toInt" =>
+      case "format" =>
         f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, IntegerType)
+          case Some(p) => env.addType(p, DateType)
           case None => env
         }
 
-      case "tofloat" | "toDouble" =>
+      case "exp" | "log"| "log10"| "sqrt"|"abs"|"ceil"|"floor"|"round"|"sign"
+           |"acos"|"asin"|"atan"|"atan2"|"cos"|"cosh"|"cot"|"coth"|"degrees"
+           |"haversin"|"radians"|"sin"|"sinh"|"tan"|"tanh"
+           | "range" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, FloatType)
+          case None => env
+        }
+
+      case "head" |"tail" | "last"| "coll.distinct"| "coll.flatten" | "coll.indexOf"
+           | "coll.insert" | "coll.max"|"coll.min" | "coll.remove" | "coll.sort"
+           | "toStringList" | "toBooleanList" =>
+        f.arguments.lift(0).flatMap(propRef) match {
+          case Some(p) => env.addType(p, ListType)
+          case None => env
+        }
+
+      case "point.distance" | "point.withinBBox" =>
+        f.arguments.lift(0).flatMap(propRef) match {
+          case Some(p) => env.addType(p, PointType)
           case None => env
         }
 
@@ -469,17 +479,6 @@ object CypherAstSchemaCollector {
   // Extract property reference if expression is a simple Variable.property
   private def propRef(e: Expression): Option[PropRef] = e match {
     case Property(Variable(v), key) => Some(PropRef(v, key.name))
-    case _ => None
-  }
-
-  private def literalType(e: Expression): Option[PropertyType] = e match {
-    case _: StringLiteral  => Some(StringType)
-    case _: BooleanLiteral => Some(BooleanType)
-    case _: IntegerLiteral => Some(IntegerType)
-    case _: SignedDecimalIntegerLiteral => Some(FloatType)
-    case _: DoubleLiteral => Some(FloatType)
-    case _: DecimalDoubleLiteral => Some(FloatType)
-    case _: ListLiteral => Some(ListType)
     case _ => None
   }
 
@@ -494,32 +493,45 @@ object CypherAstSchemaCollector {
     case _: ListLiteral => Some(ListType)
     // function calls: date("..."), toInteger(...), etc
     case f: FunctionInvocation =>
-      inferTypeFromFunction(f).orElse(Some(UnknownType))
+      inferReturnedTypeFromFunction(f).orElse(Some(UnknownType))
     // parameters / variables / functions → unknown
     case _                 => Some(UnknownType)
   }
 
-  private def inferTypeFromFunction(f: FunctionInvocation): Option[PropertyType] = {
+  private def inferReturnedTypeFromFunction(f: FunctionInvocation): Option[PropertyType] = {
     // Depending on your branch, you may need:
     // val name = f.functionName.name  OR  f.functionName.toString
     val name = f.functionName.name.toLowerCase(java.util.Locale.ROOT)
 
     name match {
       // temporal “instant type” constructors
-      case "date" => Some(DateType) // date(...) :: DATE :contentReference[oaicite:1]{index=1}
-      case "datetime" => Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
+      case "date"|"date.realtime"|"date.statement"|"date.transaction"|"date.truncate" => Some(DateType) // date(...) :: DATE :contentReference[oaicite:1]{index=1}
+      case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis" => Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
       case "localdatetime" => Some(LocalDateTimeType) // localdatetime(...) :: LOCAL DATETIME :contentReference[oaicite:3]{index=3}
       case "time" => Some(ZonedTimeType) // time(...) :: ZONED TIME :contentReference[oaicite:4]{index=4}
       case "localtime" => Some(LocalTimeType) // localtime(...) :: LOCAL TIME :contentReference[oaicite:5]{index=5}
       case "duration" => Some(DurationType) // duration(...) :: DURATION :contentReference[oaicite:6]{index=6}
+      //geo type
       case "point" => Some(PointType) // point(...) :: POINT (see functions list) :contentreference[oaicite:7]{index=7}
 
       // casting
-      case "tostring" => Some(StringType) // toString(...) returns STRING :contentReference[oaicite:8]{index=8}
-      case "tointeger" => Some(IntegerType) // toInteger(...) returns INTEGER :contentReference[oaicite:9]{index=9}
-      case "tofloat" => Some(FloatType) // toFloat(...) returns FLOAT :contentReference[oaicite:10]{index=10}
-      case "toboolean" => Some(BooleanType) // toBoolean(...) returns BOOLEAN :contentReference[oaicite:11]{index=11}
-
+      case "tostring"|"toStringOrNull" => Some(StringType) // toString(...) returns STRING :contentReference[oaicite:8]{index=8}
+      case "tointeger"|"toIntegerOrNull" => Some(IntegerType) // toInteger(...) returns INTEGER :contentReference[oaicite:9]{index=9}
+      case "tofloat"|"toFloatOrNull" => Some(FloatType) // toFloat(...) returns FLOAT :contentReference[oaicite:10]{index=10}
+      case "toboolean"|"toBooleanOrNull" => Some(BooleanType) // toBoolean(...) returns BOOLEAN :contentReference[oaicite:11]{index=11}
+      //int returned
+      case "count"|"char_length"|"character_length"|"id"|"length"|"size"|"timestamp" => Some(IntegerType)
+      case "exp"|"log"|"log10"|"sqrt"|"abs"|"rand"|"ceil"|"round"|"floor"|"point.distance"
+            |"percentileCont"|"percentileDisc"|"stDev"|"stDevP"=> Some(FloatType)
+      //string returned
+      case "trim"|"ltrim"|"rtrim"|"toupper"|"tolower"|"upper"|"lower"|"left"|"right"
+           |"normalize"|"substring"|"replace"|"format"|"db.nameFromElementId"
+           |"elementId"|"type"|"valueType" => Some(StringType)
+      //list returned
+      case "collect"|"split"|"tail"|"toBooleanList"|"toFloatList"|"toIntegerList"|"toStringList"|"range"|"labels"
+            |"coll.distinct"|"coll.flatten"|"coll.insert"|"coll.remove"|"coll.sort"|"keys"
+            |"graph.names"  => Some(ListType)
+      case "point.withinBBox" => Some(BooleanType)
       case _ =>
         None
     }

@@ -32,7 +32,7 @@ public class Obfuscator implements Callable<Integer>  {
             );
         }
     }
-    private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
+//    private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputCypherQuery input; // require exactly one: CYPHER or -f FILE

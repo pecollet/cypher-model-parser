@@ -5,7 +5,7 @@ import org.neo4j.cypher.internal.parser.AstParserFactory$;
 import org.neo4j.cypher.internal.parser.ast.AstParser;
 import org.neo4j.cypher.internal.util.ASTNode;
 import org.neo4j.cypher.internal.util.CypherExceptionFactory;
-import org.neo4j.cypherdsl.core.Statement;
+//import org.neo4j.cypherdsl.core.Statement;
 import scala.Function1;
 import scala.Option;
 import scala.collection.immutable.Seq;
