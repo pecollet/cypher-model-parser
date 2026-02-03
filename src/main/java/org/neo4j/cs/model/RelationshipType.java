@@ -32,6 +32,19 @@ public class RelationshipType  extends EntityType {
         return this;
     }
 
+    public Set<String> addUndirectedNodelabels(Set<String> labels) {
+        this.undirectedNodeLabels.addAll(labels);
+        return this.undirectedNodeLabels;
+    }
+    public Set<String> addSourceNodeLabels(Set<String> labels) {
+        this.sourceNodeLabels.addAll(labels);
+        return this.sourceNodeLabels;
+    }
+    public Set<String> addTargetNodeLabels(Set<String> labels) {
+        this.targetNodeLabels.addAll(labels);
+        return this.targetNodeLabels;
+    }
+
     public String asPlantUml() {
 
         String prefix = "class "+ '"' +this.type+'"'+" << (R,orange) >> {\n";

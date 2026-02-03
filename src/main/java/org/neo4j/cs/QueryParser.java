@@ -91,10 +91,12 @@ public class QueryParser {
 
             List<CypherAstSchemaCollector.RelationshipDescriptorDTO> rels =
                     CypherAstSchemaCollector.collectRelationshipsDTO(statement);
+//            System.out.println(rels);
             for (RelationshipDescriptorDTO r : rels) {
-                RelationshipType rt = new RelationshipType(r.relType());
-                rt.setSourceNodeLabels( new HashSet<>(r.sourceLabels()) );
-                rt.setTargetNodeLabels( new HashSet<>(r.targetLabels()) );
+                RelationshipType rt = relationshipTypes.getOrDefault(r.relType(), new RelationshipType(r.relType()));
+                rt.addSourceNodeLabels(new HashSet<>(r.sourceLabels()));
+                rt.addTargetNodeLabels(new HashSet<>(r.targetLabels()));
+                rt.addUndirectedNodelabels(new HashSet<>(r.undirectedLabels()));
                 relationshipTypes.put(r.relType(), rt);
             }
             Set<String> labels = CypherAstSchemaCollector.collectLabels(statement);

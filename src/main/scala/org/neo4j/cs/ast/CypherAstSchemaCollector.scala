@@ -290,11 +290,24 @@ object CypherAstSchemaCollector {
   }
 
   def collectRelationships(root: ASTNode): Seq[RelationshipDescriptor] = {
+    def rightmostNode(pe: PatternElement): NodePattern = pe match {
+      case np: NodePattern          => np
+      case rc: RelationshipChain    => rightmostNode(rc.rightNode) // rightNode is a NodePattern, but keep it robust
+      case other =>
+        throw new IllegalArgumentException(s"Unexpected left pattern element: ${other.getClass.getName}")
+    }
+
     root.folder.treeFold(Seq.empty[RelationshipDescriptor]) {
 
       case chain: RelationshipChain =>
         acc => {
-          val leftNode: NodePattern  = chain.leftNode
+          //left
+          val leftNode: NodePattern = chain.element match {
+            case np: NodePattern       => np
+            case rc: RelationshipChain => rightmostNode(rc)
+            case other =>
+              throw new IllegalArgumentException(s"Unexpected chain. left: ${other.getClass.getName}")
+          }
           val rightNode: NodePattern  = chain.rightNode
           val relPat: RelationshipPattern = chain.relationship
           val dir: SemanticDirection = relPat.direction
@@ -442,7 +455,7 @@ object CypherAstSchemaCollector {
     name match {
       case "upper"| "lower" | "toUpper" | "toLower" | "ltrim" | "rtrim"
          | "char_length" | "character_length"|"left"|"right"|"normalize"
-         | "replace" | "split" | "substring" =>
+         | "replace" | "split" | "substring"| "apoc.text.replace" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, StringType)
           case None => env
