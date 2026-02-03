@@ -39,6 +39,7 @@ public class Property implements Comparable{
         typeIconMap.put("DateTime", "calendar><&clock");
         typeIconMap.put("Duration", "timer");
         typeIconMap.put("Point", "location");
+        typeIconMap.put("Vector", "grid-four-up");
     }
 
     public Property(String key, String type) {

@@ -1,10 +1,11 @@
 package org.neo4j.cs.ast
 
-import org.neo4j.cypher.internal.ast.IsNormalized
+import org.neo4j.cypher.internal.ast.{IsNormalized, Unwind}
 import org.neo4j.cypher.internal.expressions._
 import org.neo4j.cypher.internal.label_expressions.LabelExpression._
 import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
+import org.neo4j.cypher.internal.util.symbols.VectorType
 import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 
 import java.util.{List => JList, Set => JSet}
@@ -31,6 +32,7 @@ object CypherAstSchemaCollector {
   case object DurationType extends PropertyType
   case object PointType    extends PropertyType
   case object ListType     extends PropertyType
+  case object VectorType     extends PropertyType
   case object UnknownType extends PropertyType
 
   /** One “edge” in the pattern */
@@ -422,6 +424,9 @@ object CypherAstSchemaCollector {
       case UnarySubtract(inner) => handleUnaryTypedExpression(inner, IntegerType)
       case IsNormalized(inner, _) => handleUnaryTypedExpression(inner, StringType)
 
+      //unwind
+      case Unwind(expression, _) =>
+        env => Foldable.TraverseChildren(propRef(expression).map(p => env.addType(p, ListType)).getOrElse(env))
       // function calls: constrain argument types for known functions
       case f: FunctionInvocation =>
         env => Foldable.TraverseChildren(applyFunctionConstraints(env, f))
@@ -430,12 +435,12 @@ object CypherAstSchemaCollector {
     }
   }
 
-  // Helper: apply typing constraints for known functions (conservative)
+  // Helper: apply typing constraints for first parameter of known functions
   private def applyFunctionConstraints(env: Env, f: FunctionInvocation): Env = {
-    val name = f.functionName.name.toLowerCase(java.util.Locale.ROOT)
+    val name = extractFunctionName(f)
 
     name match {
-      case "upper"| "lower" | "toupper" | "tolower" | "ltrim" | "rtrim"
+      case "upper"| "lower" | "toUpper" | "toLower" | "ltrim" | "rtrim"
          | "char_length" | "character_length"|"left"|"right"|"normalize"
          | "replace" | "split" | "substring" =>
         f.arguments.lift(0).flatMap(propRef) match {
@@ -443,7 +448,7 @@ object CypherAstSchemaCollector {
           case None => env
         }
 
-      case "format" =>
+      case "format"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, DateType)
           case None => env
@@ -469,6 +474,12 @@ object CypherAstSchemaCollector {
       case "point.distance" | "point.withinBBox" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, PointType)
+          case None => env
+        }
+
+      case "vector_distance"|"vector_norm"|"vector_dimension_count" =>
+        f.arguments.lift(0).flatMap(propRef) match {
+          case Some(p) => env.addType(p, VectorType)
           case None => env
         }
 
@@ -499,39 +510,46 @@ object CypherAstSchemaCollector {
   }
 
   private def inferReturnedTypeFromFunction(f: FunctionInvocation): Option[PropertyType] = {
-    // Depending on your branch, you may need:
-    // val name = f.functionName.name  OR  f.functionName.toString
-    val name = f.functionName.name.toLowerCase(java.util.Locale.ROOT)
+    val name = extractFunctionName(f)
 
     name match {
       // temporal “instant type” constructors
       case "date"|"date.realtime"|"date.statement"|"date.transaction"|"date.truncate" => Some(DateType) // date(...) :: DATE :contentReference[oaicite:1]{index=1}
-      case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis" => Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
-      case "localdatetime" => Some(LocalDateTimeType) // localdatetime(...) :: LOCAL DATETIME :contentReference[oaicite:3]{index=3}
-      case "time" => Some(ZonedTimeType) // time(...) :: ZONED TIME :contentReference[oaicite:4]{index=4}
-      case "localtime" => Some(LocalTimeType) // localtime(...) :: LOCAL TIME :contentReference[oaicite:5]{index=5}
-      case "duration" => Some(DurationType) // duration(...) :: DURATION :contentReference[oaicite:6]{index=6}
+      case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis"
+           |"datetime.realtime"|"datetime.statement"|"datetime.transaction"|"datetime.truncate"=> Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
+      case "localdatetime"|"localdatetime.realtime"|"localdatetime.statement"|"localdatetime.transaction"
+           |"localdatetime.truncate" => Some(LocalDateTimeType) // localdatetime(...) :: LOCAL DATETIME :contentReference[oaicite:3]{index=3}
+      case "time"|"time.realtime"|"time.statement"|"time.transaction"|"time.truncate" => Some(ZonedTimeType) // time(...) :: ZONED TIME :contentReference[oaicite:4]{index=4}
+      case "localtime"|"localtime.realtime"|"localtime.statement"|"localtime.transaction"|"localtime.truncate" => Some(LocalTimeType) // localtime(...) :: LOCAL TIME :contentReference[oaicite:5]{index=5}
+      case "duration"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => Some(DurationType) // duration(...) :: DURATION :contentReference[oaicite:6]{index=6}
       //geo type
       case "point" => Some(PointType) // point(...) :: POINT (see functions list) :contentreference[oaicite:7]{index=7}
 
       // casting
-      case "tostring"|"toStringOrNull" => Some(StringType) // toString(...) returns STRING :contentReference[oaicite:8]{index=8}
-      case "tointeger"|"toIntegerOrNull" => Some(IntegerType) // toInteger(...) returns INTEGER :contentReference[oaicite:9]{index=9}
-      case "tofloat"|"toFloatOrNull" => Some(FloatType) // toFloat(...) returns FLOAT :contentReference[oaicite:10]{index=10}
-      case "toboolean"|"toBooleanOrNull" => Some(BooleanType) // toBoolean(...) returns BOOLEAN :contentReference[oaicite:11]{index=11}
+      case "toString"|"toStringOrNull" => Some(StringType) // toString(...) returns STRING :contentReference[oaicite:8]{index=8}
+      case "toInteger"|"toIntegerOrNull" => Some(IntegerType) // toInteger(...) returns INTEGER :contentReference[oaicite:9]{index=9}
+      case "toFloat"|"toFloatOrNull" => Some(FloatType) // toFloat(...) returns FLOAT :contentReference[oaicite:10]{index=10}
+      case "toBoolean"|"toBooleanOrNull" => Some(BooleanType) // toBoolean(...) returns BOOLEAN :contentReference[oaicite:11]{index=11}
       //int returned
-      case "count"|"char_length"|"character_length"|"id"|"length"|"size"|"timestamp" => Some(IntegerType)
-      case "exp"|"log"|"log10"|"sqrt"|"abs"|"rand"|"ceil"|"round"|"floor"|"point.distance"
-            |"percentileCont"|"percentileDisc"|"stDev"|"stDevP"=> Some(FloatType)
+      case "count"|"char_length"|"character_length"|"id"|"length"|"size"|"timestamp"
+            |"vector_dimension_count" => Some(IntegerType)
+      case "e"|"exp"|"log"|"log10"|"sqrt"|"abs"|"rand"|"ceil"|"round"|"floor"|"point.distance"
+            |"percentileCont"|"percentileDisc"|"stDev"|"stDevP"|"sign"
+            | "acos"|"asin"|"atan"|"atan2"|"cos"|"cosh"|"cot"|"coth"|"degrees"
+            |"haversin"|"radians"|"sin"|"sinh"|"tan"|"tanh"
+            |"vector.similarity.cosine"|"vector.similarity.euclidean"|"vector_distance"|"vector_norm" => Some(FloatType)
       //string returned
-      case "trim"|"ltrim"|"rtrim"|"toupper"|"tolower"|"upper"|"lower"|"left"|"right"
+      case "trim"|"ltrim"|"rtrim"|"toUpper"|"toLower"|"upper"|"lower"|"left"|"right"
            |"normalize"|"substring"|"replace"|"format"|"db.nameFromElementId"
            |"elementId"|"type"|"valueType" => Some(StringType)
       //list returned
       case "collect"|"split"|"tail"|"toBooleanList"|"toFloatList"|"toIntegerList"|"toStringList"|"range"|"labels"
             |"coll.distinct"|"coll.flatten"|"coll.insert"|"coll.remove"|"coll.sort"|"keys"
-            |"graph.names"  => Some(ListType)
-      case "point.withinBBox" => Some(BooleanType)
+            |"graph.names"|"nodes"|"relationships"  => Some(ListType)
+      //boolean
+      case "point.withinBBox"|"isEmpty" => Some(BooleanType)
+      //vector
+      case "vector" => Some(VectorType)
       case _ =>
         None
     }
@@ -554,6 +572,7 @@ object CypherAstSchemaCollector {
         case DurationType => "Duration"
         case PointType  => "Point"
         case ListType    => "List"
+        case VectorType    => "Vector"
         case UnknownType => "UNKNOWN"
       }.getOrElse("UNKNOWN")
     )
@@ -576,5 +595,14 @@ object CypherAstSchemaCollector {
     // Wildcards / dynamic names don’t give you a concrete schema token
     case Wildcard(_)              => Set.empty
     case DynamicLeaf(_, _)           => Set.empty
+  }
+
+  private def extractFunctionName(f: FunctionInvocation): String = {
+    val fn = f.functionName
+
+    if (fn.namespace.parts.isEmpty)
+      fn.name
+    else
+      (fn.namespace.parts :+ fn.name).mkString(".")
   }
 }

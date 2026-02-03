@@ -3,6 +3,7 @@ package org.neo4j.cs;
 import org.junit.jupiter.api.Test;
 import org.neo4j.cs.model.Model;
 import org.neo4j.cs.model.Property;
+import org.neo4j.cypher.internal.CypherVersion;
 import scala.sys.Prop;
 
 import java.util.ArrayList;
@@ -126,17 +127,18 @@ public class QueryParserTest {
     @Test
     void shouldInferPropertyTypeFromPredicates_equals() {
         var p = new QueryParser();
-        Model m = p.parseQuery("MATCH (x:Node) WHERE x.name = 'sdf' AND x.id = 3 RETURN *");
+        Model m = p.parseQuery("MATCH (x:Node) WHERE x.name = 'sdf' AND x.id = 3 OR [1,2] = x.groups RETURN *");
         Set expectedProperties = new HashSet<Property>();
         expectedProperties.add(new Property("name", "String"));
         expectedProperties.add(new Property("id", "Number"));
+        expectedProperties.add(new Property("groups", "List"));
         assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
     void shouldInferPropertyTypeFromPredicates_notEquals() {
         var p = new QueryParser();
-        Model m = p.parseQuery("MATCH (x:Node) WHERE x.name <> 'sdf' AND x.id <> 3 RETURN *");
+        Model m = p.parseQuery("MATCH (x:Node) WHERE x.name <> 'sdf' AND 3 <> x.id RETURN *");
         Set expectedProperties = new HashSet<Property>();
         expectedProperties.add(new Property("name", "String"));
         expectedProperties.add(new Property("id", "Number"));
@@ -260,10 +262,24 @@ public class QueryParserTest {
     void shouldInferPropertyTypeFunctions_numbers() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) " +
-                "WHERE toInteger(x.b) = x.a ");
+                "WHERE toInteger(x.b) = x.a " +
+                "AND id(x) = x.id " +
+                "RETURN log10(x.v)");
         Set expectedProperties = new HashSet<Property>();
         expectedProperties.add(new Property("a", "Number"));
         expectedProperties.add(new Property("b", "UNKNOWN"));
+        expectedProperties.add(new Property("v", "Number"));
+        expectedProperties.add(new Property("id", "Number"));
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+    }
+
+    @Test
+    void shouldInferPropertyTypeFunctions_vectors() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (x:Node) " +
+                "WHERE vector([1,2,3]) = x.a ");
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("a", "Vector"));
         assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
     }
 
@@ -274,7 +290,8 @@ public class QueryParserTest {
                 "WHERE toLower(x.a) = x.a2 " +
                 "AND toUpper(x.b) = x.b2 " +
                 "AND ltrim(x.c) = x.c2 " +
-                "AND rtrim(x.d, ' ') = x.d2 " +
+                "AND x.d2 = rtrim(x.d, ' ')  " +
+                "AND char_length(x.e) = x.e2 " +
                 "RETURN *");
         Set expectedProperties = new HashSet<Property>();
         expectedProperties.add(new Property("a", "String"));
@@ -285,13 +302,39 @@ public class QueryParserTest {
         expectedProperties.add(new Property("c2", "String"));
         expectedProperties.add(new Property("d", "String"));
         expectedProperties.add(new Property("d2", "String"));
+        expectedProperties.add(new Property("e", "String"));
+        expectedProperties.add(new Property("e2", "Number"));
         assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
     }
-//    @Test
-//    void shouldInferPropertyQuery() {
-//        Model m = new QueryParser().parseQuery("MATCH (l:Left)-[:HAS]-(:Right) RETURN 5 as x, toUpper(l.name) as y");
-//        Set expectedProperties = new HashSet<String>();
-//        expectedProperties.add(new Property("name", "String"));
-//        assertEquals(expectedProperties, m.getNodeLabels().get("Left").getProperties());
-//    }
+    @Test
+    void shouldInferPropertyTypeFunctions_lists() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (x:Node) " +
+                "WHERE collect(1) = x.b " +
+                "UNWIND x.l as i " +
+                "RETURN head(x.m), tail(x.n), last(x.o), coll.distinct(x.p)");
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("b", "List"));
+        expectedProperties.add(new Property("l", "List"));
+        expectedProperties.add(new Property("m", "List"));
+        expectedProperties.add(new Property("n", "List"));
+        expectedProperties.add(new Property("o", "List"));
+        expectedProperties.add(new Property("p", "List"));
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+    }
+    @Test
+    void shouldInferPropertyTypeFunctions_dates() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (x:Node) " +
+                "WHERE date() = x.b " +
+                "AND x.c = datetime() " +
+                "AND datetime.realtime() = x.d " +
+                "RETURN *");
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("b", "Date"));
+        expectedProperties.add(new Property("c", "Time"));
+        expectedProperties.add(new Property("d", "Time"));
+
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+    }
 }
