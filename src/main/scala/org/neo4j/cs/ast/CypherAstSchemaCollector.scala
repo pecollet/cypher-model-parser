@@ -1,6 +1,6 @@
 package org.neo4j.cs.ast
 
-import org.neo4j.cypher.internal.ast.{IsNormalized, Unwind}
+import org.neo4j.cypher.internal.ast.{IsNormalized, SetPropertyItem, Unwind}
 import org.neo4j.cypher.internal.expressions._
 import org.neo4j.cypher.internal.label_expressions.LabelExpression._
 import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
@@ -438,6 +438,10 @@ object CypherAstSchemaCollector {
       //unwind
       case Unwind(expression, _) =>
         env => Foldable.TraverseChildren(propRef(expression).map(p => env.addType(p, ListType)).getOrElse(env))
+
+      //SET property
+      case SetPropertyItem(prop, expr) => handleVarVsLiteralExpression(prop, expr)
+
       // function calls: constrain argument types for known functions
       case f: FunctionInvocation =>
         env => Foldable.TraverseChildren(applyFunctionConstraints(env, f))

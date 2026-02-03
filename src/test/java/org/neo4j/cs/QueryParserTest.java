@@ -260,11 +260,14 @@ public class QueryParserTest {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) " +
                 "WHERE toInteger(x.b) = x.a " +
+                "AND  x.a2 = toInteger(x.b2)" +
                 "AND id(x) = x.id " +
                 "RETURN log10(x.v)");
         Set expectedProperties = new HashSet<Property>();
         expectedProperties.add(new Property("a", "Number"));
         expectedProperties.add(new Property("b", "UNKNOWN"));
+        expectedProperties.add(new Property("a2", "Number"));
+        expectedProperties.add(new Property("b2", "UNKNOWN"));
         expectedProperties.add(new Property("v", "Number"));
         expectedProperties.add(new Property("id", "Number"));
         assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
@@ -428,5 +431,36 @@ public class QueryParserTest {
         expectedProperties.add(new Property("property", "UNKNOWN"));
 
         assertEquals(expectedProperties,  m.getNodeLabels().get("Location").getProperties());
+    }
+
+    @Test
+    void shouldExtractRelationshipsFromNodePatternsWithOnlyVariables() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("LOAD CSV WITH HEADERS FROM 'some/path' AS row " +
+                "MATCH (p:Product), (o:Order) " +
+                "WHERE p.productID = row.productID AND o.orderID = row.orderID " +
+                "CREATE (o)-[details:ORDERS]->(p) " +
+                "SET details = row, details.quantity = toInteger(row.quantity)");
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Product");
+        expectedNodeLabels.add("Order");
+        Set expectedRelTypes = new HashSet<String>();
+        expectedRelTypes.add("ORDERS");
+
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+
+        Set expectedRelSources = new HashSet<String>();
+        expectedRelSources.add("Order");
+        Set expectedRelTargets = new HashSet<String>();
+        expectedRelTargets.add("Product");
+
+//        assertEquals(expectedRelSources, m.getRelationshipTypes().get("ORDERS").getSourceNodeLabels());
+//        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("ORDERS").getTargetNodeLabels());
+
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("quantity", "Number"));
+
+        assertEquals(expectedProperties,  m.getRelationshipTypes().get("ORDERS").getProperties());
     }
 }
