@@ -6,10 +6,7 @@ import org.neo4j.cs.model.Property;
 import org.neo4j.cypher.internal.CypherVersion;
 import scala.sys.Prop;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -336,5 +333,100 @@ public class QueryParserTest {
         expectedProperties.add(new Property("d", "Time"));
 
         assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+    }
+
+    @Test
+    void shouldDealWithConflictingPropertyTypes() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (x:Node) " +
+                "WHERE date() = x.whatami " +
+                "AND x.whatami = 12 " +
+                "RETURN *");
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("whatami", "UNKNOWN"));
+
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+    }
+
+    @Test
+    void shouldCombineMultipleRefsToRelationshipTypes() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("match path = (n)-[:Has_Postcode]->(p:Postcode)<-[:Has_Postcode]-(a:Address) " +
+                "RETURN *");
+        System.out.println(m);
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Postcode");
+        expectedNodeLabels.add("Address");
+
+        Set expectedRelTypes = new HashSet<String>();
+        expectedRelTypes.add("Has_Postcode");
+
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+        Set expectedRelSources = new HashSet<String>();
+        expectedRelSources.add("Address");
+        Set expectedRelTargets = new HashSet<String>();
+        expectedRelTargets.add("Postcode");
+
+        assertEquals(expectedRelSources, m.getRelationshipTypes().get("Has_Postcode").getSourceNodeLabels());
+        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("Has_Postcode").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldLinkNodesAndRelsInMultiHopPatterns() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("match path = (n)-[:Has_Postcode]->(p:Postcode)<-[:Has_Thing]-(a:Address) " +
+                "RETURN *");
+        System.out.println(m);
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Postcode");
+        expectedNodeLabels.add("Address");
+
+        Set expectedRelTypes = new HashSet<String>();
+        expectedRelTypes.add("Has_Postcode");
+        expectedRelTypes.add("Has_Thing");
+
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+
+        Set expectedRelTargets = new HashSet<String>();
+        expectedRelTargets.add("Postcode");
+
+        assertEquals(Collections.emptySet(), m.getRelationshipTypes().get("Has_Postcode").getSourceNodeLabels());
+        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("Has_Postcode").getTargetNodeLabels());
+
+
+        Set expectedRelSources = new HashSet<String>();
+        expectedRelSources.add("Address");
+        assertEquals(expectedRelSources, m.getRelationshipTypes().get("Has_Thing").getSourceNodeLabels());
+        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("Has_Thing").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldExtractPropertyFromIndexCreation() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(" CREATE TEXT INDEX location_name FOR (n:Location) ON (n.name) ");
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Location");
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("name", "UNKNOWN"));
+
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Location").getProperties());
+    }
+
+    @Test
+    void shouldExtractPropertyFromConstraintCreation() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(" CREATE CONSTRAINT location_name FOR (n:Location)  REQUIRE n.property IS UNIQUE ");
+        Set expectedNodeLabels = new HashSet<String>();
+        expectedNodeLabels.add("Location");
+        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+
+        Set expectedProperties = new HashSet<Property>();
+        expectedProperties.add(new Property("property", "UNKNOWN"));
+
+        assertEquals(expectedProperties,  m.getNodeLabels().get("Location").getProperties());
     }
 }

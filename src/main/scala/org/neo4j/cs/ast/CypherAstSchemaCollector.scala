@@ -5,7 +5,6 @@ import org.neo4j.cypher.internal.expressions._
 import org.neo4j.cypher.internal.label_expressions.LabelExpression._
 import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpressionPredicate}
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
-import org.neo4j.cypher.internal.util.symbols.VectorType
 import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 
 import java.util.{List => JList, Set => JSet}
@@ -63,7 +62,7 @@ object CypherAstSchemaCollector {
                                           propertyType: String // e.g. "STRING", "NUMBER", ...
                                         )
 
-  final case class Result(labels: Set[String], relTypes: Set[String], properties: Set[String])
+  final case class Result(labels: Set[String])
   final case class PropRef(varName: String, key: String)
   final case class Env(
                         // from your pattern pass
@@ -88,19 +87,11 @@ object CypherAstSchemaCollector {
     final case class TokAcc(
                              nodeVars: Map[String, Set[String]],
                              relVars: Map[String, Set[String]],
-                             labels: Set[String],
-                             relTypes: Set[String],
-                             properties: Set[String]
+                             labels: Set[String]
                            )
 
-    def tokName(n: Any): Option[String] = n match {
-      case LabelName(name) => Some(name)
-      case RelTypeName(name) => Some(name)
-      case lor: LabelOrRelTypeName => Some(lor.name)
-      case _ => None
-    }
-    val init = TokAcc(Map.empty, Map.empty, Set.empty, Set.empty, Set.empty)
-    val out =root.folder.treeFold(init) {
+    val init = TokAcc(Map.empty, Map.empty, Set.empty)
+    val out = root.folder.treeFold(init) {
       case node: NodePattern =>
         acc => {
           val labels = nodeLabels(node)
@@ -113,48 +104,27 @@ object CypherAstSchemaCollector {
           TraverseChildren(acc.copy(nodeVars = newNodeVars, labels = acc.labels ++ labels))
         }
 
-      case relPat: RelationshipPattern =>
-        acc => {
-          val types = relationshipTypes(relPat)
-          val newRelVars = relPat.variable match {
-            case Some(v: LogicalVariable) =>
-              val existing = acc.relVars.getOrElse(v.name, Set.empty)
-              acc.relVars.updated(v.name, existing ++ types)
-            case _ => acc.relVars
-          }
-          TraverseChildren(acc.copy(relVars = newRelVars, relTypes = acc.relTypes ++ types))
-        }
-
       case LabelName(name) =>
         acc => Foldable.TraverseChildren(acc.copy(labels = acc.labels + name))
-
-      case RelTypeName(name) =>
-        acc => Foldable.TraverseChildren(acc.copy(relTypes = acc.relTypes + name))
 
       case LabelExpressionPredicate(Variable(v), le) =>
         acc => {
           val labelsOrTypes = extractNamesFromLabelExpression(le)
           val isNode = acc.nodeVars.contains(v)
-          val isRel = acc.relVars.contains(v)
 
-          val (labels, relTypes) =
-            if (isNode && !isRel) (labelsOrTypes, Set.empty[String])
-            else if (!isNode && isRel) (Set.empty[String], labelsOrTypes)
-            else (Set.empty[String], Set.empty[String])
+          val (labels) =
+            if (isNode) (labelsOrTypes)
+            else (Set.empty[String])
 
           val newAcc = acc.copy(
             labels = acc.labels ++ labels,
-            relTypes = acc.relTypes ++ relTypes
           )
 
           TraverseChildren(newAcc)
         }
 
-      case Property(expr, key) =>
-        //need to also get the property owner entity
-        acc => Foldable.TraverseChildren(acc.copy(properties = acc.properties + key.name))
     }
-    Result(out.labels, out.relTypes, out.properties)
+    Result(out.labels)
   }
   // ----- Public API you call from Java -----
   def collectLabels(root: ASTNode): JSet[String] =
@@ -224,6 +194,34 @@ object CypherAstSchemaCollector {
           TraverseChildren(acc.copy(
             relVars    = newRelVars,
             properties = acc.properties ++ inlineProps
+          ))
+        }
+      // --- INDEX CREATION: CREATE INDEX ... FOR (n:Label) ON (n.prop) ---
+      case node: ASTNode if Set("CreateSingleLabelPropertyIndexCommand", "CreateConstraintCommand")
+        .contains(node.getClass.getSimpleName) =>
+        acc => {
+          // Use reflection or structural extraction to avoid the import access error
+          val labelField = node.getClass.getDeclaredMethods.find(_.getName == "entityName").map(_.invoke(node))
+          val propsField = node.getClass.getDeclaredMethods.find(_.getName == "properties").map(_.invoke(node))
+          val labelName = labelField match {
+            case Some(l: LabelName) => l.name
+            case _ => ""
+          }
+
+          val indexProps = try {
+            propsField match {
+              case Some(propsObj: Seq[_]) =>
+                val props = propsObj.asInstanceOf[Seq[Any]]
+                props.collect {
+                  case Property(_, key) =>
+                    PropertyDescriptor(NodeOwner, labelName, key.name, None)
+                }
+              case _ => Seq.empty
+            }
+          } catch { case _: Exception => Seq.empty }
+
+          TraverseChildren(acc.copy(
+            properties = acc.properties ++ indexProps
           ))
         }
 
@@ -608,6 +606,7 @@ object CypherAstSchemaCollector {
     // Wildcards / dynamic names don’t give you a concrete schema token
     case Wildcard(_)              => Set.empty
     case DynamicLeaf(_, _)           => Set.empty
+    case _ => Set.empty
   }
 
   private def extractFunctionName(f: FunctionInvocation): String = {
