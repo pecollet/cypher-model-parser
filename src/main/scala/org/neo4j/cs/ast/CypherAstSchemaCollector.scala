@@ -535,12 +535,20 @@ object CypherAstSchemaCollector {
   private def inferType(expr: Expression): Option[PropertyType] = expr match {
     case _: StringLiteral  => Some(StringType)
     case _: IntegerLiteral => Some(IntegerType)
-    // adjust these to your branch's integer/decimal classes if different:
     case _: SignedDecimalIntegerLiteral => Some(FloatType)
     case _: DoubleLiteral      => Some(FloatType)
     case _: DecimalDoubleLiteral        => Some(FloatType)
     case _: BooleanLiteral => Some(BooleanType)
     case _: ListLiteral => Some(ListType)
+    case _: ListComprehension => Some(ListType)
+    case Add(lhs, rhs) =>
+      val left = inferType(lhs)
+      val right = inferType(rhs)
+      if (left.contains(StringType) || right.contains(StringType)) Some(StringType)
+      else if (left.contains(IntegerType) && right.contains(IntegerType)) Some(IntegerType)
+      else if (left.contains(FloatType) || right.contains(FloatType)) Some(FloatType)
+      else if (left.contains(ListType) || right.contains(ListType)) Some(ListType)
+      else Some(UnknownType)
     // function calls: date("..."), toInteger(...), etc
     case f: FunctionInvocation =>
       inferReturnedTypeFromFunction(f).orElse(Some(UnknownType))

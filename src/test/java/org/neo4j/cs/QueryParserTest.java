@@ -388,22 +388,22 @@ public class QueryParserTest {
         assertEquals(expectedProperties, m.getNodeLabels().get("Movie").getProperties());
     }
 
-//    @Test
-//    void shouldInferPropertyTypeForNestedFunctionInvocations() {
-//        var p = new QueryParser();
-//        Model m = p.parseQuery("CREATE (e:Element {name:toString(i)+'-'+toString(j)})");
-//        assertEquals(Set.of("Element"), m.getNodeLabels().keySet());
-//        assertEquals(Set.of(new Property("name", "String")), m.getNodeLabels().get("Element").getProperties());
-//    }
-//
-//    @Test
-//    void shouldInferPropertyTypeForList() {
-//        var p = new QueryParser();
-//        Model m = p.parseQuery("CREATE (p:Product {id: 12, embedding: [i IN range(1, 1000) | rand()]})");
-//        assertEquals(Set.of("Product"), m.getNodeLabels().keySet());
-//        Set<Property> expectedProperties = Set.of(
-//                new Property("id", "Number"),
-//                new Property("embedding", "List"));
-//        assertEquals(expectedProperties, m.getNodeLabels().get("Product").getProperties());
-//    }
+    @Test
+    void shouldInferPropertyTypeForNestedFunctionInvocations() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("CREATE (e:Element {name:toString(i)+'-'+toString(j)})");
+        assertEquals(Set.of("Element"), m.getNodeLabels().keySet());
+        assertEquals(Set.of(new Property("name", "String")), m.getNodeLabels().get("Element").getProperties());
+    }
+
+    @Test
+    void shouldInferPropertyTypeForList() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("CREATE (p:Product {ids: [1] + [2], embedding: [i IN range(1, 1000) | rand()]})");
+        assertEquals(Set.of("Product"), m.getNodeLabels().keySet());
+        Set<Property> expectedProperties = Set.of(
+                new Property("ids", "List"),
+                new Property("embedding", "List"));
+        assertEquals(expectedProperties, m.getNodeLabels().get("Product").getProperties());
+    }
 }
