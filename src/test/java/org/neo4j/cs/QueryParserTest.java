@@ -380,29 +380,16 @@ public class QueryParserTest {
         var p = new QueryParser();
         Model m = p.parseQuery("match path = (n)-[:Has_Postcode]->(p:Postcode)<-[:Has_Thing]-(a:Address) " +
                 "RETURN *");
-        System.out.println(m);
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Postcode");
-        expectedNodeLabels.add("Address");
+//        System.out.println(m);
 
-        Set expectedRelTypes = new HashSet<String>();
-        expectedRelTypes.add("Has_Postcode");
-        expectedRelTypes.add("Has_Thing");
-
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
-
-        Set expectedRelTargets = new HashSet<String>();
-        expectedRelTargets.add("Postcode");
+        assertEquals(Set.of("Postcode", "Address"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("Has_Postcode", "Has_Thing"), m.getRelationshipTypes().keySet());
 
         assertEquals(Collections.emptySet(), m.getRelationshipTypes().get("Has_Postcode").getSourceNodeLabels());
-        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("Has_Postcode").getTargetNodeLabels());
+        assertEquals(Set.of("Postcode"), m.getRelationshipTypes().get("Has_Postcode").getTargetNodeLabels());
 
-
-        Set expectedRelSources = new HashSet<String>();
-        expectedRelSources.add("Address");
-        assertEquals(expectedRelSources, m.getRelationshipTypes().get("Has_Thing").getSourceNodeLabels());
-        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("Has_Thing").getTargetNodeLabels());
+        assertEquals(Set.of("Address"), m.getRelationshipTypes().get("Has_Thing").getSourceNodeLabels());
+        assertEquals(Set.of("Postcode"), m.getRelationshipTypes().get("Has_Thing").getTargetNodeLabels());
     }
 
     @Test
@@ -455,8 +442,8 @@ public class QueryParserTest {
         Set expectedRelTargets = new HashSet<String>();
         expectedRelTargets.add("Product");
 
-//        assertEquals(expectedRelSources, m.getRelationshipTypes().get("ORDERS").getSourceNodeLabels());
-//        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("ORDERS").getTargetNodeLabels());
+        assertEquals(expectedRelSources, m.getRelationshipTypes().get("ORDERS").getSourceNodeLabels());
+        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("ORDERS").getTargetNodeLabels());
 
         Set expectedProperties = new HashSet<Property>();
         expectedProperties.add(new Property("quantity", "Number"));

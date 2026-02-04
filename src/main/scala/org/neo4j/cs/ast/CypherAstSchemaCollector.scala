@@ -83,7 +83,7 @@ object CypherAstSchemaCollector {
 
   private val emptyAcc = Acc(Map.empty, Map.empty, Vector.empty)
 
-  def collect(root: ASTNode): Result = {
+  def collectLabels(root: ASTNode): JSet[String] = {
     final case class TokAcc(
                              nodeVars: Map[String, Set[String]],
                              relVars: Map[String, Set[String]],
@@ -124,11 +124,8 @@ object CypherAstSchemaCollector {
         }
 
     }
-    Result(out.labels)
+    out.labels.asJava
   }
-  // ----- Public API you call from Java -----
-  def collectLabels(root: ASTNode): JSet[String] =
-    collect(root).labels.asJava
 
   /**
    * Collect properties (labels/rel-types -> property keys) and perform a best-effort type inference
