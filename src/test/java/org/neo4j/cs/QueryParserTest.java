@@ -52,7 +52,7 @@ public class QueryParserTest {
         assertEquals(Set.of("HAS"), m.getRelationshipTypes().keySet());
 
         assertEquals(Set.of("Left", "Alt", "Alt2"), m.getRelationshipTypes().get("HAS").getSourceNodeLabels());
-        assertEquals(Set.of("Right"), m.getRelationshipTypes().get("HAS").getTargetNodeLabels());
+        assertEquals(Set.of("Right", "Other"), m.getRelationshipTypes().get("HAS").getTargetNodeLabels());
     }
 
     @Test

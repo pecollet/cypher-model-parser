@@ -284,8 +284,8 @@ object CypherAstSchemaCollector {
   }
 
   def collectRelationships(root: ASTNode): Seq[RelationshipDescriptor] = {
-    // 1. First Pass: Build a map of variables to labels across the whole AST
-    // This allows us to resolve (o) to (:Order) if defined in a previous MATCH
+    // 1. First Pass: Build a comprehensive map of variables to labels
+    // This includes labels from NodePatterns and LabelExpressionPredicates (WHERE clause)
     val varLabelMap = root.folder.treeFold(Map.empty[String, Set[String]]) {
       case node: NodePattern =>
         acc => {
@@ -298,6 +298,13 @@ object CypherAstSchemaCollector {
           }
           TraverseChildren(newAcc)
         }
+
+      case LabelExpressionPredicate(Variable(v), le) =>
+        acc => {
+          val labels = extractNamesFromLabelExpression(le)
+          val existing = acc.getOrElse(v, Set.empty)
+          TraverseChildren(acc.updated(v, existing ++ labels))
+        }
     }
 
     def rightmostNode(pe: PatternElement): NodePattern = pe match {
@@ -307,7 +314,7 @@ object CypherAstSchemaCollector {
         throw new IllegalArgumentException(s"Unexpected left pattern element: ${other.getClass.getName}")
     }
 
-    // 2. Second Pass: Collect relationships using the map for resolution
+    // 2. Second Pass: Traverse RelationshipChains and resolve variables
     root.folder.treeFold(Seq.empty[RelationshipDescriptor]) {
       case chain: RelationshipChain =>
         acc => {
@@ -321,13 +328,13 @@ object CypherAstSchemaCollector {
           val relPat: RelationshipPattern = chain.relationship
           val dir: SemanticDirection = relPat.direction
 
-          // Resolve labels: Use explicit labels in the pattern OR look up the variable name
+          // Helper to resolve labels by checking both inline labels and the variable map
           def resolveLabels(node: NodePattern): Set[String] = {
-            val explicit = nodeLabels(node)
-            val fromVar = node.variable.collect {
+            val inlineLabels = nodeLabels(node)
+            val mappedLabels = node.variable.collect {
               case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
             }.getOrElse(Set.empty)
-            explicit ++ fromVar
+            inlineLabels ++ mappedLabels
           }
 
           val leftLabels = resolveLabels(leftNode)
@@ -343,7 +350,7 @@ object CypherAstSchemaCollector {
                 (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
             }
 
-          val relTypes  = relationshipTypes(relPat)
+          val relTypes = relationshipTypes(relPat)
 
           val descriptors = relTypes.toSeq.map { t =>
             RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
