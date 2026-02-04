@@ -6,6 +6,7 @@ import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemErr;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized;
@@ -285,55 +286,53 @@ public class ObfuscatorTest {
     }
 
 
-//    @Test
-//    void shouldObfuscateCypher25Syntaxes() throws Exception {
-//        ArrayList<String> queries = new ArrayList<>();
-//        queries.add("LET n = 1 RETURN n");
-//        queries.add("RETURN 0 NEXT RETURN 1");
-//
-//        for (String query : queries) {
-//            var statement = CypherParser.parse(query);
-//            Configuration rendererConfig = Configuration.newConfig()
-//                    .alwaysEscapeNames(false)
-//                    .withPrettyPrint(true)
-//                    .withDialect(Dialect.NEO4J_5_23  )
-//                    .build();
-//            var renderer = Renderer.getRenderer(rendererConfig);
-//
-//            String result = renderer.render(statement);
-//            assertEquals(query, result);
-//        }
-//    }
+    @Test
+    void shouldObfuscateCypher25Syntaxes() throws Exception {
+        var queries = List.of(
+                "LET n = 1 RETURN n",
+                "RETURN 0 NEXT RETURN 1"
+        );
+        var expected = List.of(
+                "LET n = **** RETURN n\n",
+                "RETURN **** NEXT RETURN ****\n"
+        );
+        var i=0;
+        for (String query : queries) {
 
-//    @Test
-//    void shouldObfuscateOrderByWithoutNPE() throws Exception {
-//        String cypher="""
-//                MATCH (c:Content)
-//                WITH c WHERE c.name = 3
-//                ORDER BY c.publishedDate
-//                RETURN c
-//                """;
-//        String cypher2="""
-//                MATCH (c:Content)
-//                ORDER BY c.publishedDate
-//                RETURN c
-//                """;
-//
-//        String errText = tapSystemErr(() -> {
-//            String outText = tapSystemOutNormalized(() -> {
-//                new CommandLine(new Obfuscator()).execute(cypher, "-p");
-//            });
-////            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
-//        });
-//        assertEquals("", errText);
-//        errText = tapSystemErr(() -> {
-//            String outText = tapSystemOutNormalized(() -> {
-//                new CommandLine(new Obfuscator()).execute(cypher2, "-p");
-//            });
-////            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
-//        });
-//        assertEquals("", errText);
-//    }
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query, "-d", "25");
+            });
+            assertEquals(expected.get(i++), outText);
+        }
+    }
+
+    @Test
+    void shouldObfuscateOrderByWithoutNPE() throws Exception {
+        String query= """
+                UNWIND range(1,1000000) as id
+                CALL (id) {
+                  CREATE (p:Product {id:id, embedding: [i IN range(1, 1536) | rand()]})\s
+                  WITH id, p\s
+                  UNWIND range(1, 1 + toInteger(round(10*rand()))) as j\s
+                  CREATE (e:Element {name:toString(id)+'-'+toString(j), embedding: [i IN range(1, 1536) | rand()]})\s
+                  CREATE (p)-[:HAS_ELEMENT]->(e)
+                } IN TRANSACTIONS OF 10000 ROWS
+                """;
+        String outText = tapSystemOutNormalized(() -> {
+            new CommandLine(new Obfuscator()).execute(query);
+        });
+        String expected = """
+                UNWIND range(****,****) as id
+                CALL (id) {
+                  CREATE (p:Product {id:id, embedding: [i IN range(****, ****) | rand()]})\s
+                  WITH id, p\s
+                  UNWIND range(****, **** + toInteger(round(*****rand()))) as j\s
+                  CREATE (e:Element {name:toString(id)+****+toString(j), embedding: [i IN range(****, ****) | rand()]})\s
+                  CREATE (p)-[:HAS_ELEMENT]->(e)
+                } IN TRANSACTIONS OF **** ROWS
+                """;
+        assertEquals(expected, outText);
+    }
 
 
 }

@@ -34,14 +34,15 @@ public class QueryParserTest {
     @Test
     void shouldParseQueries() {
         var queries = List.of(
-                "MATCH(t:Thing)-[:HAS]->(:Stuff) WHERE t.name= 'thingy' RETURN t",
-                "MATCH(s:Stuff)-[:IS]->(:Class) RETURN n"
+                "MATCH(t:Thing)-[:HAS]->(s:Stuff) WHERE s.name= 'thingy' RETURN t",
+                "MATCH(s:Stuff {id : 23})-[:IS]->(:Class) RETURN n"
         );
         Model m = new QueryParser().parseQueries(queries);
 
         assertEquals(Set.of("Thing", "Stuff", "Class"), m.getNodeLabels().keySet());
         assertEquals(Set.of("HAS", "IS"), m.getRelationshipTypes().keySet());
-        assertEquals(Set.of(new Property("name", "String")), m.getNodeLabels().get("Thing").getProperties());
+        assertEquals(Set.of(new Property("name", "String"), new Property("id", "Number")),
+                m.getNodeLabels().get("Stuff").getProperties());
     }
 
     @Test
@@ -369,4 +370,40 @@ public class QueryParserTest {
         Set<Property> expectedProperties = Set.of(new Property("quantity", "Number"));
         assertEquals(expectedProperties, m.getRelationshipTypes().get("ORDERS").getProperties());
     }
+
+    @Test
+    void shouldCombineConflictingPropertyTypes() {
+        var queries = List.of(
+                "CREATE (TheMatrix:Movie {title:'The Matrix', released:1999, tagline:'blah'})",
+                "CREATE CONSTRAINT FOR (n:Movie) REQUIRE (n.title) IS UNIQUE"
+        );
+        Model m = new QueryParser().parseQueries(queries);
+
+        assertEquals(Set.of("Movie"), m.getNodeLabels().keySet());
+
+        Set<Property> expectedProperties = Set.of(
+                new Property("released", "Number"),
+                new Property("title", "String"),
+                new Property("tagline", "String"));
+        assertEquals(expectedProperties, m.getNodeLabels().get("Movie").getProperties());
+    }
+
+//    @Test
+//    void shouldInferPropertyTypeForNestedFunctionInvocations() {
+//        var p = new QueryParser();
+//        Model m = p.parseQuery("CREATE (e:Element {name:toString(i)+'-'+toString(j)})");
+//        assertEquals(Set.of("Element"), m.getNodeLabels().keySet());
+//        assertEquals(Set.of(new Property("name", "String")), m.getNodeLabels().get("Element").getProperties());
+//    }
+//
+//    @Test
+//    void shouldInferPropertyTypeForList() {
+//        var p = new QueryParser();
+//        Model m = p.parseQuery("CREATE (p:Product {id: 12, embedding: [i IN range(1, 1000) | rand()]})");
+//        assertEquals(Set.of("Product"), m.getNodeLabels().keySet());
+//        Set<Property> expectedProperties = Set.of(
+//                new Property("id", "Number"),
+//                new Property("embedding", "List"));
+//        assertEquals(expectedProperties, m.getNodeLabels().get("Product").getProperties());
+//    }
 }
