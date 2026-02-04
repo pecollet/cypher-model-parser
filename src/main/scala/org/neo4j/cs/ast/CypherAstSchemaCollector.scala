@@ -62,7 +62,6 @@ object CypherAstSchemaCollector {
                                           propertyType: String // e.g. "STRING", "NUMBER", ...
                                         )
 
-  final case class Result(labels: Set[String])
   final case class PropRef(varName: String, key: String)
   final case class Env(
                         // from your pattern pass
@@ -285,18 +284,33 @@ object CypherAstSchemaCollector {
   }
 
   def collectRelationships(root: ASTNode): Seq[RelationshipDescriptor] = {
+    // 1. First Pass: Build a map of variables to labels across the whole AST
+    // This allows us to resolve (o) to (:Order) if defined in a previous MATCH
+    val varLabelMap = root.folder.treeFold(Map.empty[String, Set[String]]) {
+      case node: NodePattern =>
+        acc => {
+          val labels = nodeLabels(node)
+          val newAcc = node.variable match {
+            case Some(v: LogicalVariable) =>
+              val existing = acc.getOrElse(v.name, Set.empty)
+              acc.updated(v.name, existing ++ labels)
+            case _ => acc
+          }
+          TraverseChildren(newAcc)
+        }
+    }
+
     def rightmostNode(pe: PatternElement): NodePattern = pe match {
-      case np: NodePattern          => np
-      case rc: RelationshipChain    => rightmostNode(rc.rightNode) // rightNode is a NodePattern, but keep it robust
+      case np: NodePattern       => np
+      case rc: RelationshipChain    => rightmostNode(rc.rightNode)
       case other =>
         throw new IllegalArgumentException(s"Unexpected left pattern element: ${other.getClass.getName}")
     }
 
+    // 2. Second Pass: Collect relationships using the map for resolution
     root.folder.treeFold(Seq.empty[RelationshipDescriptor]) {
-
       case chain: RelationshipChain =>
         acc => {
-          //left
           val leftNode: NodePattern = chain.element match {
             case np: NodePattern       => np
             case rc: RelationshipChain => rightmostNode(rc)
@@ -307,8 +321,17 @@ object CypherAstSchemaCollector {
           val relPat: RelationshipPattern = chain.relationship
           val dir: SemanticDirection = relPat.direction
 
-          val leftLabels = nodeLabels(leftNode)
-          val rightLabels = nodeLabels(rightNode)
+          // Resolve labels: Use explicit labels in the pattern OR look up the variable name
+          def resolveLabels(node: NodePattern): Set[String] = {
+            val explicit = nodeLabels(node)
+            val fromVar = node.variable.collect {
+              case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
+            }.getOrElse(Set.empty)
+            explicit ++ fromVar
+          }
+
+          val leftLabels = resolveLabels(leftNode)
+          val rightLabels = resolveLabels(rightNode)
 
           val (srcLabels, tgtLabels, undirLabels) =
             dir match {
@@ -318,21 +341,18 @@ object CypherAstSchemaCollector {
                 (rightLabels, leftLabels, Set.empty[String])
               case SemanticDirection.BOTH =>
                 (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
-
             }
 
           val relTypes  = relationshipTypes(relPat)
 
-          // For each relationship type, create one descriptor
-          val descriptors =
-            for (t <- relTypes.toSeq)
-              yield RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
+          val descriptors = relTypes.toSeq.map { t =>
+            RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
+          }
 
           TraverseChildren(acc ++ descriptors)
         }
     }
   }
-
   def collectRelationshipsDTO(root: ASTNode): JList[RelationshipDescriptorDTO] =
     collectRelationships(root)
       .map { d =>

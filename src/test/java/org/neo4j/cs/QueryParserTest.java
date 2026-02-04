@@ -27,139 +27,109 @@ public class QueryParserTest {
         assertEquals(
                 "MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  123456 RETURN n",
                 p.preProcessObfuscatedQuery("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n")
-                );
+        );
         assertTrue(true);
     }
 
     @Test
     void shouldParseQueries() {
-        List<String> queries = new ArrayList<>();
-        queries.add("MATCH(t:Thing)-[:HAS]->(:Stuff) WHERE t.name= 'thingy' RETURN t");
-        queries.add("MATCH(s:Stuff)-[:IS]->(:Class) RETURN n");
+        var queries = List.of(
+                "MATCH(t:Thing)-[:HAS]->(:Stuff) WHERE t.name= 'thingy' RETURN t",
+                "MATCH(s:Stuff)-[:IS]->(:Class) RETURN n"
+        );
         Model m = new QueryParser().parseQueries(queries);
 
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Thing");
-        expectedNodeLabels.add("Stuff");
-        expectedNodeLabels.add("Class");
-
-        Set expectedRelTypes = new HashSet<String>();
-        expectedRelTypes.add("HAS");
-        expectedRelTypes.add("IS");
-
-        Set expectedProperties = new HashSet<String>();
-        expectedProperties.add(new Property("name", "String"));
-
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
-        assertEquals(expectedProperties, m.getNodeLabels().get("Thing").getProperties());
+        assertEquals(Set.of("Thing", "Stuff", "Class"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("HAS", "IS"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of(new Property("name", "String")), m.getNodeLabels().get("Thing").getProperties());
     }
+
     @Test
     void shouldParseQuery_labelsAndTypes() {
         Model m = new QueryParser().parseQuery("MATCH (:Left|Alt&!Alt2)-[:HAS]->(r:Right) WHERE r:Other RETURN *");
-        System.out.println(m);
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Left");
-        expectedNodeLabels.add("Right");
-        expectedNodeLabels.add("Other");
-        expectedNodeLabels.add("Alt");
-        expectedNodeLabels.add("Alt2");
 
-        Set expectedRelTypes = new HashSet<String>();
-        expectedRelTypes.add("HAS");
+        assertEquals(Set.of("Left", "Right", "Other", "Alt", "Alt2"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("HAS"), m.getRelationshipTypes().keySet());
 
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
-        Set expectedRelSources = new HashSet<String>();
-        expectedRelSources.add("Left");
-        expectedRelSources.add("Alt");
-        expectedRelSources.add("Alt2");
-        Set expectedRelTargets = new HashSet<String>();
-        expectedRelTargets.add("Right");
-//        expectedRelTargets.add("Other");  // a bit too hard to link RelType from outside a pattern to source/target
-        assertEquals(expectedRelSources, m.getRelationshipTypes().get("HAS").getSourceNodeLabels());
-        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("HAS").getTargetNodeLabels());
+        assertEquals(Set.of("Left", "Alt", "Alt2"), m.getRelationshipTypes().get("HAS").getSourceNodeLabels());
+        assertEquals(Set.of("Right"), m.getRelationshipTypes().get("HAS").getTargetNodeLabels());
     }
 
     @Test
     void shouldParseQuery_cypher25() {
         var p = new QueryParser();
         Model m = p.parseQuery("LET x = 1 MATCH (n:Node) WHERE n.name = x RETURN n");
-        System.out.println(m);
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Node");
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
     }
+
     @Test
     void shouldParseQuery_properties() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (l:Left {x: date(\"2025-02-18\")})<-[:HAS {since: [123]}]-(:Right {id: 'hhh', active : true}) WHERE l.name = 'sdf' RETURN toUpper(l.id) as x");
-        System.out.println(m);
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Left");
-        expectedNodeLabels.add("Right");
 
-        Set expectedRelTypes = new HashSet<String>();
-        expectedRelTypes.add("HAS");
+        assertEquals(Set.of("Left", "Right"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("HAS"), m.getRelationshipTypes().keySet());
 
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+        Set<Property> expectedLeftProps = Set.of(
+                new Property("x", "Date"),
+                new Property("name", "String"),
+                new Property("id", "String")
+        );
+        assertEquals(expectedLeftProps, m.getNodeLabels().get("Left").getProperties());
 
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("x", "Date"));
-        expectedProperties.add(new Property("name", "String"));
-        expectedProperties.add(new Property("id", "String"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Left").getProperties());
+        Set<Property> expectedRightProps = Set.of(
+                new Property("active", "Boolean"),
+                new Property("id", "String")
+        );
+        assertEquals(expectedRightProps, m.getNodeLabels().get("Right").getProperties());
 
-        expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("active", "Boolean"));
-        expectedProperties.add(new Property("id", "String"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Right").getProperties());
-
-        expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("since", "List"));
-        assertEquals(expectedProperties,  m.getRelationshipTypes().get("HAS").getProperties());
+        assertEquals(Set.of(new Property("since", "List")), m.getRelationshipTypes().get("HAS").getProperties());
     }
 
     @Test
     void shouldInferPropertyTypeFromPredicates_equals() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) WHERE x.name = 'sdf' AND x.id = 3 OR [1,2] = x.groups RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("name", "String"));
-        expectedProperties.add(new Property("id", "Number"));
-        expectedProperties.add(new Property("groups", "List"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("name", "String"),
+                new Property("id", "Number"),
+                new Property("groups", "List")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
     void shouldInferPropertyTypeFromPredicates_notEquals() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) WHERE x.name <> 'sdf' AND 3 <> x.id RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("name", "String"));
-        expectedProperties.add(new Property("id", "Number"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("name", "String"),
+                new Property("id", "Number")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
     void shouldInferPropertyTypeFromPredicates_greaterThan() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) WHERE x.name >= 'sdf' AND x.id > 3 RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("name", "String"));
-        expectedProperties.add(new Property("id", "Number"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("name", "String"),
+                new Property("id", "Number")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
     void shouldInferPropertyTypeFromPredicates_lessThan() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) WHERE x.name <= 'sdf' AND x.id < 3 RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("name", "String"));
-        expectedProperties.add(new Property("id", "Number"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("name", "String"),
+                new Property("id", "Number")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -173,23 +143,17 @@ public class QueryParserTest {
                 "x.e % 3, 10 % x.e2," +
                 "x.f ^ 2, 2 ^ x.f2, x.f3 ^ x.f4," +
                 "- x.g");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "Number"));
-        expectedProperties.add(new Property("a2", "Number"));
-        expectedProperties.add(new Property("b", "Number"));
-        expectedProperties.add(new Property("b2", "Number"));
-        expectedProperties.add(new Property("c", "Number"));
-        expectedProperties.add(new Property("c2", "Number"));
-        expectedProperties.add(new Property("d", "Number"));
-        expectedProperties.add(new Property("d2", "Number"));
-        expectedProperties.add(new Property("e", "Number"));
-        expectedProperties.add(new Property("e2", "Number"));
-        expectedProperties.add(new Property("f", "Number"));
-        expectedProperties.add(new Property("f2", "Number"));
-        expectedProperties.add(new Property("f3", "Number"));
-        expectedProperties.add(new Property("f4", "Number"));
-        expectedProperties.add(new Property("g", "Number"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("a", "Number"), new Property("a2", "Number"),
+                new Property("b", "Number"), new Property("b2", "Number"),
+                new Property("c", "Number"), new Property("c2", "Number"),
+                new Property("d", "Number"), new Property("d2", "Number"),
+                new Property("e", "Number"), new Property("e2", "Number"),
+                new Property("f", "Number"), new Property("f2", "Number"),
+                new Property("f3", "Number"), new Property("f4", "Number"),
+                new Property("g", "Number")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -200,15 +164,13 @@ public class QueryParserTest {
                 "x.b AND false, true AND x.b2," +
                 "x.c XOR false, true XOR x.c2," +
                 "NOT x.d");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "Boolean"));
-        expectedProperties.add(new Property("a2", "Boolean"));
-        expectedProperties.add(new Property("b", "Boolean"));
-        expectedProperties.add(new Property("b2", "Boolean"));
-        expectedProperties.add(new Property("c", "Boolean"));
-        expectedProperties.add(new Property("c2", "Boolean"));
-        expectedProperties.add(new Property("d", "Boolean"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("a", "Boolean"), new Property("a2", "Boolean"),
+                new Property("b", "Boolean"), new Property("b2", "Boolean"),
+                new Property("c", "Boolean"), new Property("c2", "Boolean"),
+                new Property("d", "Boolean")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -223,23 +185,17 @@ public class QueryParserTest {
                 "x.f CONTAINS x.f2," +
                 "x.g || 'ABC', 'df' || x.g2, " +
                 "x.h IS NORMALIZED");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "String"));
-        expectedProperties.add(new Property("a2", "String"));
-        expectedProperties.add(new Property("b", "String"));
-        expectedProperties.add(new Property("b2", "String"));
-        expectedProperties.add(new Property("c", "String"));
-        expectedProperties.add(new Property("c2", "String"));
-        expectedProperties.add(new Property("d", "String"));
-        expectedProperties.add(new Property("d2", "String"));
-        expectedProperties.add(new Property("e", "String"));
-        expectedProperties.add(new Property("e2", "String"));
-        expectedProperties.add(new Property("f", "String"));
-        expectedProperties.add(new Property("f2", "String"));
-        expectedProperties.add(new Property("g", "String"));
-        expectedProperties.add(new Property("g2", "String"));
-        expectedProperties.add(new Property("h", "String"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("a", "String"), new Property("a2", "String"),
+                new Property("b", "String"), new Property("b2", "String"),
+                new Property("c", "String"), new Property("c2", "String"),
+                new Property("d", "String"), new Property("d2", "String"),
+                new Property("e", "String"), new Property("e2", "String"),
+                new Property("f", "String"), new Property("f2", "String"),
+                new Property("g", "String"), new Property("g2", "String"),
+                new Property("h", "String")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -249,10 +205,11 @@ public class QueryParserTest {
                 "WHERE 'ddd' IN x.a " +
                 "AND x.b IN [1,2,'3']" +
                 "RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "List"));
-        expectedProperties.add(new Property("b", "UNKNOWN"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("a", "List"),
+                new Property("b", "UNKNOWN")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -263,14 +220,15 @@ public class QueryParserTest {
                 "AND  x.a2 = toInteger(x.b2)" +
                 "AND id(x) = x.id " +
                 "RETURN log10(x.v)");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "Number"));
-        expectedProperties.add(new Property("b", "UNKNOWN"));
-        expectedProperties.add(new Property("a2", "Number"));
-        expectedProperties.add(new Property("b2", "UNKNOWN"));
-        expectedProperties.add(new Property("v", "Number"));
-        expectedProperties.add(new Property("id", "Number"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("a", "Number"),
+                new Property("b", "UNKNOWN"),
+                new Property("a2", "Number"),
+                new Property("b2", "UNKNOWN"),
+                new Property("v", "Number"),
+                new Property("id", "Number")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -278,9 +236,7 @@ public class QueryParserTest {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) " +
                 "WHERE vector([1,2,3]) = x.a ");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "Vector"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        assertEquals(Set.of(new Property("a", "Vector")), m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -293,19 +249,16 @@ public class QueryParserTest {
                 "AND x.d2 = rtrim(x.d, ' ')  " +
                 "AND char_length(x.e) = x.e2 " +
                 "RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("a", "String"));
-        expectedProperties.add(new Property("a2", "String"));
-        expectedProperties.add(new Property("b", "String"));
-        expectedProperties.add(new Property("b2", "String"));
-        expectedProperties.add(new Property("c", "String"));
-        expectedProperties.add(new Property("c2", "String"));
-        expectedProperties.add(new Property("d", "String"));
-        expectedProperties.add(new Property("d2", "String"));
-        expectedProperties.add(new Property("e", "String"));
-        expectedProperties.add(new Property("e2", "Number"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("a", "String"), new Property("a2", "String"),
+                new Property("b", "String"), new Property("b2", "String"),
+                new Property("c", "String"), new Property("c2", "String"),
+                new Property("d", "String"), new Property("d2", "String"),
+                new Property("e", "String"), new Property("e2", "Number")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
+
     @Test
     void shouldInferPropertyTypeFunctions_lists() {
         var p = new QueryParser();
@@ -313,15 +266,17 @@ public class QueryParserTest {
                 "WHERE collect(1) = x.b " +
                 "UNWIND x.l as i " +
                 "RETURN head(x.m), tail(x.n), last(x.o), coll.distinct(x.p)");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("b", "List"));
-        expectedProperties.add(new Property("l", "List"));
-        expectedProperties.add(new Property("m", "List"));
-        expectedProperties.add(new Property("n", "List"));
-        expectedProperties.add(new Property("o", "List"));
-        expectedProperties.add(new Property("p", "List"));
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        Set<Property> expectedProperties = Set.of(
+                new Property("b", "List"),
+                new Property("l", "List"),
+                new Property("m", "List"),
+                new Property("n", "List"),
+                new Property("o", "List"),
+                new Property("p", "List")
+        );
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
+
     @Test
     void shouldInferPropertyTypeFunctions_dates() {
         var p = new QueryParser();
@@ -330,12 +285,13 @@ public class QueryParserTest {
                 "AND x.c = datetime() " +
                 "AND datetime.realtime() = x.d " +
                 "RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("b", "Date"));
-        expectedProperties.add(new Property("c", "Time"));
-        expectedProperties.add(new Property("d", "Time"));
+        Set<Property> expectedProperties = Set.of(
+                new Property("b", "Date"),
+                new Property("c", "Time"),
+                new Property("d", "Time")
+        );
 
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -345,10 +301,7 @@ public class QueryParserTest {
                 "WHERE date() = x.whatami " +
                 "AND x.whatami = 12 " +
                 "RETURN *");
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("whatami", "UNKNOWN"));
-
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Node").getProperties());
+        assertEquals(Set.of(new Property("whatami", "UNKNOWN")), m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -356,23 +309,12 @@ public class QueryParserTest {
         var p = new QueryParser();
         Model m = p.parseQuery("match path = (n)-[:Has_Postcode]->(p:Postcode)<-[:Has_Postcode]-(a:Address) " +
                 "RETURN *");
-        System.out.println(m);
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Postcode");
-        expectedNodeLabels.add("Address");
 
-        Set expectedRelTypes = new HashSet<String>();
-        expectedRelTypes.add("Has_Postcode");
+        assertEquals(Set.of("Postcode", "Address"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("Has_Postcode"), m.getRelationshipTypes().keySet());
 
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
-        Set expectedRelSources = new HashSet<String>();
-        expectedRelSources.add("Address");
-        Set expectedRelTargets = new HashSet<String>();
-        expectedRelTargets.add("Postcode");
-
-        assertEquals(expectedRelSources, m.getRelationshipTypes().get("Has_Postcode").getSourceNodeLabels());
-        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("Has_Postcode").getTargetNodeLabels());
+        assertEquals(Set.of("Address"), m.getRelationshipTypes().get("Has_Postcode").getSourceNodeLabels());
+        assertEquals(Set.of("Postcode"), m.getRelationshipTypes().get("Has_Postcode").getTargetNodeLabels());
     }
 
     @Test
@@ -380,7 +322,6 @@ public class QueryParserTest {
         var p = new QueryParser();
         Model m = p.parseQuery("match path = (n)-[:Has_Postcode]->(p:Postcode)<-[:Has_Thing]-(a:Address) " +
                 "RETURN *");
-//        System.out.println(m);
 
         assertEquals(Set.of("Postcode", "Address"), m.getNodeLabels().keySet());
         assertEquals(Set.of("Has_Postcode", "Has_Thing"), m.getRelationshipTypes().keySet());
@@ -396,28 +337,18 @@ public class QueryParserTest {
     void shouldExtractPropertyFromIndexCreation() {
         var p = new QueryParser();
         Model m = p.parseQuery(" CREATE TEXT INDEX location_name FOR (n:Location) ON (n.name) ");
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Location");
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(Set.of("Location"), m.getNodeLabels().keySet());
 
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("name", "UNKNOWN"));
-
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Location").getProperties());
+        assertEquals(Set.of(new Property("name", "UNKNOWN")), m.getNodeLabels().get("Location").getProperties());
     }
 
     @Test
     void shouldExtractPropertyFromConstraintCreation() {
         var p = new QueryParser();
         Model m = p.parseQuery(" CREATE CONSTRAINT location_name FOR (n:Location)  REQUIRE n.property IS UNIQUE ");
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Location");
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
+        assertEquals(Set.of("Location"), m.getNodeLabels().keySet());
 
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("property", "UNKNOWN"));
-
-        assertEquals(expectedProperties,  m.getNodeLabels().get("Location").getProperties());
+        assertEquals(Set.of(new Property("property", "UNKNOWN")), m.getNodeLabels().get("Location").getProperties());
     }
 
     @Test
@@ -428,26 +359,14 @@ public class QueryParserTest {
                 "WHERE p.productID = row.productID AND o.orderID = row.orderID " +
                 "CREATE (o)-[details:ORDERS]->(p) " +
                 "SET details = row, details.quantity = toInteger(row.quantity)");
-        Set expectedNodeLabels = new HashSet<String>();
-        expectedNodeLabels.add("Product");
-        expectedNodeLabels.add("Order");
-        Set expectedRelTypes = new HashSet<String>();
-        expectedRelTypes.add("ORDERS");
 
-        assertEquals(expectedNodeLabels, m.getNodeLabels().keySet());
-        assertEquals(expectedRelTypes, m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Product", "Order"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("ORDERS"), m.getRelationshipTypes().keySet());
 
-        Set expectedRelSources = new HashSet<String>();
-        expectedRelSources.add("Order");
-        Set expectedRelTargets = new HashSet<String>();
-        expectedRelTargets.add("Product");
+        assertEquals(Set.of("Order"), m.getRelationshipTypes().get("ORDERS").getSourceNodeLabels());
+        assertEquals(Set.of("Product"), m.getRelationshipTypes().get("ORDERS").getTargetNodeLabels());
 
-        assertEquals(expectedRelSources, m.getRelationshipTypes().get("ORDERS").getSourceNodeLabels());
-        assertEquals(expectedRelTargets, m.getRelationshipTypes().get("ORDERS").getTargetNodeLabels());
-
-        Set expectedProperties = new HashSet<Property>();
-        expectedProperties.add(new Property("quantity", "Number"));
-
-        assertEquals(expectedProperties,  m.getRelationshipTypes().get("ORDERS").getProperties());
+        Set<Property> expectedProperties = Set.of(new Property("quantity", "Number"));
+        assertEquals(expectedProperties, m.getRelationshipTypes().get("ORDERS").getProperties());
     }
 }
