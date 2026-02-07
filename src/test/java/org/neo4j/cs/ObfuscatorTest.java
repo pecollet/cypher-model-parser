@@ -307,7 +307,7 @@ public class ObfuscatorTest {
     }
 
     @Test
-    void shouldObfuscateOrderByWithoutNPE() throws Exception {
+    void shouldObfuscateUnwindQuery() throws Exception {
         String query= """
                 UNWIND range(1,1000000) as id
                 CALL (id) {
@@ -333,6 +333,14 @@ public class ObfuscatorTest {
                 """;
         assertEquals(expected, outText);
     }
-
+    @Test
+    void shouldObfuscatePlusMinusNumber() throws Exception {
+        String query= "RETURn +1, -23, 3+6, 45-3";
+        String outText = tapSystemOutNormalized(() -> {
+            new CommandLine(new Obfuscator()).execute(query);
+        });
+        String expected = "RETURn +****, ****, ****+****, ****-****\n";
+        assertEquals(expected, outText);
+    }
 
 }

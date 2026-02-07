@@ -43,18 +43,17 @@ object CypherAstMasker {
       def scanNumberLiteral(start: Int): Int = {
         if (start < 0 || start >= text.length) return start
         var i = start
-        def isNumChar(ch: Char): Boolean =
-          (ch >= '0' && ch <= '9') || ch == '+' || ch == '-' || ch == '.' || ch == 'e' || ch == 'E' || ch == '_'
-        while (i < text.length && isNumChar(text.charAt(i))) i += 1
-        i
-      }
+        def isNumChar(ch: Char, pos: Int): Boolean = {
+          if (ch >= '0' && ch <= '9') true
+          else if (ch == '-' && pos == 0) true // Minus only at the absolute start
+          else if (pos > 0) {
+            // These characters are only valid if they are NOT the first character
+            ch == '.' || ch == 'e' || ch == 'E' || ch == '_'
+        }
+        else false
+        }
 
-      def scanWord(start: Int): Int = {
-        if (start < 0 || start >= text.length) return start
-        var i = start
-        def isAlpha(ch: Char): Boolean =
-          (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z')
-        while (i < text.length && isAlpha(text.charAt(i))) i += 1
+        while (i < text.length && isNumChar(text.charAt(i), i - start)) i += 1
         i
       }
 
@@ -102,7 +101,6 @@ object CypherAstMasker {
           }
 
         // Generic catch-all for other Literals (Numbers, Booleans)
-        // This replaces the previous explicit list of types which was failing to match.
         case lit: Literal => acc =>
           val start = lit.position.offset
           spanForLiteral(start, lit) match {
