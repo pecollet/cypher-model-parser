@@ -7,3 +7,4 @@
 "MATCH (this1:A:B)-[:WHICH_WAY]-(:End) return this1"
 "MATCH (this1:`A.u`)-[:`x.y`]->(:End) return this1"
 "MATCH   (principal:User{userId: $principal})-[:HAS_RESTRICTED_ROLE_ON|HAS_COLLABORATOR_ROLE_ON|HAS_STANDARD_ROLE_ON|HAS_ADVANCED_ROLE_ON|HAS_ADMIN_ROLE_ON]->(workspace:Workspace{workspaceId: $workspaceId}) <br>//THIS A COMMENT<br>RETURN principal"
+"CYPHER 25 LET x = 1 MATCH (n:Node) WHERE n.name = x RETURN n"
