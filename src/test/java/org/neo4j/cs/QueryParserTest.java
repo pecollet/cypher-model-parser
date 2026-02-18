@@ -25,7 +25,7 @@ public class QueryParserTest {
     void shouldDeobfuscate() {
         var p = new QueryParser();
         assertEquals(
-                "MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  123456 RETURN n",
+                "MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  $abcde RETURN n",
                 p.preProcessObfuscatedQuery("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n")
         );
         assertTrue(true);
@@ -406,4 +406,17 @@ public class QueryParserTest {
                 new Property("embedding", "List"));
         assertEquals(expectedProperties, m.getNodeLabels().get("Product").getProperties());
     }
+
+    @Test
+    void shouldInferPropertyType_toString() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:PersonList_v3) WHERE n.x =~ $var SET n.list_id = toString(n.list_id) RETURN split(n.list_val, '-')");
+        assertEquals(Set.of("PersonList_v3"), m.getNodeLabels().keySet());
+        Set<Property> expectedProperties = Set.of(
+                new Property("list_val", "String"),
+                new Property("x", "String"),
+                new Property("list_id", "String"));
+        assertEquals(expectedProperties, m.getNodeLabels().get("PersonList_v3").getProperties());
+    }
+
 }

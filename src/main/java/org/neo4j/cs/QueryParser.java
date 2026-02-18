@@ -69,7 +69,7 @@ public class QueryParser {
     }
 
     public String preProcessObfuscatedQuery(String query) {
-        return query.replaceAll("\\*\\*\\*\\*\\*\\*", "123456");
+        return query.replaceAll("\\*\\*\\*\\*\\*\\*", "\\$abcde");
     }
 
 
