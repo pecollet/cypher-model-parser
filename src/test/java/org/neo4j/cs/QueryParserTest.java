@@ -419,4 +419,24 @@ public class QueryParserTest {
         assertEquals(expectedProperties, m.getNodeLabels().get("PersonList_v3").getProperties());
     }
 
+
+    @Test
+    void shouldInferPropertyType_ambiguousTypes() {
+        // property x is detected as both unknown and string => string
+        // property z is detected as both integer and string => unknown
+        String query = "MATCH (o:Organization) " +
+                "WHERE ((o.x = $ccna) OR ($acna IN o.y)) AND o.z = 1 " +
+                "RETURN o.y " +
+                "ORDER BY CASE WHEN o.x = 'BOB' THEN 0 WHEN o.z = 'BILL' THEN 2 ELSE 1 END LIMIT 1";
+//        query = "MATCH (o:Organization) WHERE o.id = 12 AND o.id = '' RETURN 0";
+        var p = new QueryParser();
+        Model m = p.parseQuery(query);
+        assertEquals(Set.of("Organization"), m.getNodeLabels().keySet());
+        Set<Property> expectedProperties = Set.of(
+                new Property("y", "List"),
+                new Property("z", "UNKNOWN"),
+                new Property("x", "String"));
+        assertEquals(expectedProperties, m.getNodeLabels().get("Organization").getProperties());
+    }
+
 }

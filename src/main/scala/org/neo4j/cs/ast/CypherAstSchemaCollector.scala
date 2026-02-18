@@ -257,10 +257,20 @@ object CypherAstSchemaCollector {
       val nodeLabels = acc.nodeVars.getOrElse(varName, Set.empty)
       val relTypes = acc.relVars.getOrElse(varName, Set.empty)
 
+      val filteredTypes = types - UnknownType
       val chosenType: Option[PropertyType] =
-        if (types.isEmpty) None
-        else if (types.size == 1) Some(types.head)
-        else Some(UnknownType)
+        if (filteredTypes.isEmpty) {
+          // If the set is empty or only contained UnknownType, return UnknownType
+          if (types.nonEmpty) Some(UnknownType) else None //
+        }
+        else if (filteredTypes.size == 1) {
+          // If we have exactly one concrete type left, use it
+          Some(filteredTypes.head) //
+        }
+        else {
+          // If we still have multiple concrete types, it's truly ambiguous
+          Some(UnknownType) //
+        }
 
       val nodeProps = nodeLabels.toSeq.map { label =>
         PropertyDescriptor(NodeOwner, label, key, chosenType)
@@ -428,7 +438,7 @@ object CypherAstSchemaCollector {
     root.folder.treeFold(initial) {
 
       // equality / comparison: propagate literal types to the opposite side
-    case Equals(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
+      case Equals(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
       case NotEquals(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
       case LessThan(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
       case LessThanOrEqual(lhs, rhs) => handleVarVsLiteralExpression(lhs, rhs)
