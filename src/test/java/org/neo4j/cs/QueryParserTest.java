@@ -205,10 +205,12 @@ public class QueryParserTest {
         Model m = p.parseQuery("MATCH (x:Node) " +
                 "WHERE 'ddd' IN x.a " +
                 "AND x.b IN [1,2,'3']" +
+                "AND x.c IN [1,2,3]" +
                 "RETURN *");
         Set<Property> expectedProperties = Set.of(
                 new Property("a", "List"),
-                new Property("b", "UNKNOWN")
+                new Property("b", "UNKNOWN"),
+                new Property("c", "Number")
         );
         assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
@@ -439,4 +441,26 @@ public class QueryParserTest {
         assertEquals(expectedProperties, m.getNodeLabels().get("Organization").getProperties());
     }
 
+    @Test
+    void shouldInferPropertyType_ambiguousProperties() {
+        List<String> queries = new ArrayList<>();
+        queries.add(
+        "    UNWIND $data AS row\n" +
+                "    MATCH (d:Document {UID: row.UID})\n" +
+                "    MATCH (p:Person {reference: row.person_reference})\n" +
+                "    MERGE (d)-[:HAS_PERSON]->(p)");
+        queries.add("UNWIND $data AS row\n" +
+                "MATCH (d {UID: row.doc_uid})\n" +
+                "MATCH (e {UID: row.entity_uid})\n" +
+                "CREATE (d)-[:HAS_PERSON]->(e)");
+        queries.add("MATCH p=(d:Document)-[:HAS_PERSON]->() where d.collectionID=32 RETURN p");
+        queries.add("MATCH p=()-[:HAS_PERSON]->(d:Document) where d.collectionID=51 RETURN p LIMIT 25;");
+        queries.add("MATCH p=()-[:HAS_PERSON]->() RETURN p");
+        var p = new QueryParser();
+        Model m = p.parseQueries(queries);
+        assertEquals(Set.of("Document", "Person"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("HAS_PERSON"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Document"), m.getRelationshipTypes().get("HAS_PERSON").getSourceNodeLabels());
+        assertEquals(Set.of("Person", "Document"), m.getRelationshipTypes().get("HAS_PERSON").getTargetNodeLabels());
+    }
 }

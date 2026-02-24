@@ -459,11 +459,30 @@ object CypherAstSchemaCollector {
       case EndsWith(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
       case Contains(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
       case RegexMatch(lhs, rhs) => handleTypedExpression(lhs, rhs, StringType)
-      //IN : implies only for rhs
+      // IN : implies ListType for rhs, and potentially element type for lhs
       case In(lhs, rhs) =>
         env =>
-          val e2 = propRef(rhs).map(p => env.addType(p, ListType)).getOrElse(env)
-          Foldable.TraverseChildren(e2)
+          // property on rhs => List
+          val envWithList = propRef(rhs).map(p => env.addType(p, ListType)).getOrElse(env)
+          // property on lhs => infer its type from the rhs list elements
+          val envWithLhs = propRef(lhs) match {
+            case Some(pRef) =>
+              rhs match {
+                case ListLiteral(expressions) if expressions.nonEmpty =>
+                  // Extract types for all elements in the list literal
+                  val elementTypes = expressions.flatMap(inferType).toSet - UnknownType
+                  // Only infer if the list is homogenous (exactly one concrete type found)
+                  if (elementTypes.size == 1) {
+                    envWithList.addType(pRef, elementTypes.head)
+                  } else {
+                    envWithList
+                  }
+                case _ => envWithList
+              }
+            case None => envWithList
+          }
+
+          Foldable.TraverseChildren(envWithLhs)
       // some unary operators imply a type
       case Not(inner) => handleUnaryTypedExpression(inner, BooleanType)
       case UnarySubtract(inner) => handleUnaryTypedExpression(inner, IntegerType)
