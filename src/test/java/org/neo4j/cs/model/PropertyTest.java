@@ -8,7 +8,7 @@ public class PropertyTest {
     @Test
     void shouldExportCorrectPlantUml() {
         Property p = new Property("name");
-        assertEquals(p.asPlantUml(), "<&question-mark> name");
+        assertEquals(p.asPlantUml(), "ATTR(name)");
     }
 
     @Test

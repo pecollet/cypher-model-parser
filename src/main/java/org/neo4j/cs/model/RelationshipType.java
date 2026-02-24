@@ -46,13 +46,16 @@ public class RelationshipType  extends EntityType {
     }
 
     public String asPlantUml() {
-
-        String prefix = "class "+ '"' +this.type+'"'+" << (R,orange) >> {\n";
-        String properties = this.getProperties().stream().sorted()
-                .map(p -> "    " + p.asPlantUml())
-                .collect(Collectors.joining("\n"));
-        String suffix = "\n}";
-        String plantUml =  prefix + properties + suffix;
+        String plantUml = "";
+        String classDef = "class "+ '"' +this.type+'"'+" R";
+        if (this.getProperties().isEmpty()) {
+            plantUml = classDef;
+        } else {
+            String properties = this.getProperties().stream().sorted()
+                    .map(p -> "    " + p.asPlantUml())
+                    .collect(Collectors.joining("\n"));
+            plantUml = classDef + " {\n" + properties + "\n}";
+        }
 
         String starts = this.sourceNodeLabels.stream()
                 .map ( lbl -> '"'+lbl+'"'+ " -- " +'"'+ this.type+ '"')

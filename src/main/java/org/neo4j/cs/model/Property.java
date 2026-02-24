@@ -48,9 +48,15 @@ public class Property implements Comparable{
     }
 
     public String asPlantUml() {
-        String plantUml=this.key;
         String typeIconName= typeIconMap.computeIfAbsent(this.type, type -> "question-mark");
-        plantUml = "<&"+typeIconName+"> " + plantUml;
+        if ("question-mark".equals(typeIconName)) {
+            String plantUml = "ATTR(" + this.key + ")";
+            if (this.indexed) {
+                plantUml = "{static} " + plantUml;
+            }
+            return plantUml;
+        }
+        String plantUml = "<&"+typeIconName+"> " + this.key;
 
         if (this.indexed) plantUml = "{static} " + plantUml;
         return plantUml;

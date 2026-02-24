@@ -114,9 +114,12 @@ public class Parser implements Callable<Integer> {
         if (engine == LayoutEngine.SMETANA) layoutCommand = "!pragma layout smetana\n";
         String stylingCommands =  "scale max 900 width\n" +
                 "set namespaceSeparator none\n" +
-                "hide empty members\n";
+                "hide empty members\n" ;
+        String macros = "!define ATTR(x) <&question-mark> x\n" +
+                "!define N << (N,lightblue) >>\n" +
+                "!define R << (R,orange) >>\n";
         String suffix = "\n@enduml";
-        String plantUmlStr = prefix + layoutCommand + stylingCommands + m.asPlantUml() + suffix;
+        String plantUmlStr = prefix + layoutCommand + stylingCommands + macros + m.asPlantUml() + suffix;
 
         SourceStringReader reader = new SourceStringReader(plantUmlStr);
         try {
