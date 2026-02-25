@@ -9,7 +9,7 @@ import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 
 import java.util.{List => JList, Set => JSet}
 import scala.jdk.CollectionConverters._
-
+import org.neo4j.cypher.internal.util.symbols._
 
 
 object CypherAstSchemaCollector {
@@ -506,67 +506,34 @@ object CypherAstSchemaCollector {
   // Helper: apply typing constraints for first parameter of known functions
   private def applyFunctionConstraints(env: Env, f: FunctionInvocation): Env = {
     val name = extractFunctionName(f)
-
-    name match {
-      case "upper"| "lower" | "toUpper" | "toLower" | "ltrim" | "rtrim"
-         | "char_length" | "character_length"|"left"|"right"|"normalize"
-         | "replace" | "split" | "substring"| "apoc.text.replace"| "apoc.text.distance"
-         | "apoc.text.urlencode" | "apoc.text.urldecode" | "apoc.json.path" | "apoc.xml.parse" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, StringType)
-          case None => env
+    val registry = CypherFunctionRegistry.allFunctions //116 native functions
+    val param1Type = registry.get(name)
+      .flatMap(_.signatures.headOption)      // Safely get first signature
+      .flatMap(_.argumentTypes.headOption)   // Safely get first argument
+      .map(mapCypherTypeToPropertyType)      // Convert if it exists
+      .getOrElse(                // Final unwrapped fallback
+        name match {
+          case "apoc.text.replace"| "apoc.text.distance"
+               | "apoc.text.urlencode" | "apoc.text.urldecode" | "apoc.json.path"
+               | "apoc.xml.parse" => StringType
+          case "format"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => DateType
+          case  "apoc.coll.elements" |"apoc.coll.split"
+                 | "apoc.coll.zipToRows" | "apoc.coll.avg" | "apoc.coll.combinations"
+                 | "apoc.coll.contains" | "apoc.coll.containsAll" | "apoc.coll.containsAllSorted"
+                 | "apoc.coll.containsDuplicates" | "apoc.coll.containsSorted" | "apoc.coll.different"
+                 | "apoc.coll.disjunction" | "apoc.coll.dropDuplicateNeighbors" | "apoc.coll.duplicates"
+                 | "apoc.coll.duplicatesWithCount" | "apoc.coll.flatten" | "apoc.coll.frequencies"
+                 | "apoc.coll.frequenciesAsMap" | "apoc.coll.indexOf" | "apoc.coll.insert"
+                 | "apoc.coll.insertAll" | "apoc.coll.intersection" | "apoc.coll.isEqualCollection"
+                 | "apoc.coll.max" | "apoc.coll.min" | "apoc.coll.occurrences" | "apoc.coll.pairs"
+                 | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.sum"
+                 | "apoc.coll.toSet" | "apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => ListType
+          case _ => UnknownType
         }
-
-      case "format"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, DateType)
-          case None => env
-        }
-
-      case "exp" | "log"| "log10"| "sqrt"|"abs"|"ceil"|"floor"|"round"|"sign"
-           |"acos"|"asin"|"atan"|"atan2"|"cos"|"cosh"|"cot"|"coth"|"degrees"
-           |"haversin"|"radians"|"sin"|"sinh"|"tan"|"tanh"
-           | "range" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, FloatType)
-          case None => env
-        }
-
-      case "head" |"tail" | "last"| "coll.distinct"| "coll.flatten" | "coll.indexOf"
-           | "coll.insert" | "coll.max"|"coll.min" | "coll.remove" | "coll.sort"
-           | "toStringList" | "toBooleanList" | "apoc.coll.elements" |"apoc.coll.split"
-           | "apoc.coll.zipToRows" | "apoc.coll.avg" | "apoc.coll.combinations"
-           | "apoc.coll.contains" | "apoc.coll.containsAll" | "apoc.coll.containsAllSorted"
-           | "apoc.coll.containsDuplicates" | "apoc.coll.containsSorted" | "apoc.coll.different"
-           | "apoc.coll.disjunction" | "apoc.coll.dropDuplicateNeighbors" | "apoc.coll.duplicates"
-           | "apoc.coll.duplicatesWithCount" | "apoc.coll.flatten" | "apoc.coll.frequencies"
-           | "apoc.coll.frequenciesAsMap" | "apoc.coll.indexOf" | "apoc.coll.insert"
-           | "apoc.coll.insertAll" | "apoc.coll.intersection" | "apoc.coll.isEqualCollection"
-           | "apoc.coll.max" | "apoc.coll.min" | "apoc.coll.occurrences" | "apoc.coll.pairs"
-           | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.sum"
-           | "apoc.coll.toSet" | "apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, ListType)
-          case None => env
-        }
-
-      case "point.distance" | "point.withinBBox" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, PointType)
-          case None => env
-        }
-
-      case "vector_distance"|"vector_norm"|"vector_dimension_count" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, VectorType)
-          case None => env
-        }
-      case "apoc.when" =>
-        f.arguments.lift(0).flatMap(propRef) match {
-          case Some(p) => env.addType(p, BooleanType)
-          case None => env
-        }
-      case _ => env
+      )
+    f.arguments.lift(0).flatMap(propRef) match {
+      case Some(p) => env.addType(p, param1Type)
+      case None => env
     }
   }
 
@@ -600,54 +567,62 @@ object CypherAstSchemaCollector {
     case _                 => Some(UnknownType)
   }
 
+  private def mapCypherTypeToPropertyType(ct: CypherType): PropertyType = {
+    if (ct.toClassString == "String") StringType
+    else if (ct.toClassString == "Integer") IntegerType
+    else if (ct.toClassString == "Float") FloatType
+    else if (ct.toClassString == "Boolean") BooleanType
+      //date function are not in the list, so the below is not necessary
+//    else if (ct.toClassString == "xxxx") DateType
+//    else if (ct.toClassString == "xxxx") LocalTimeType
+//    else if (ct.toClassString == "xxxx") ZonedTimeType
+//    else if (ct.toClassString == "xxxx") LocalDateTimeType
+//    else if (ct.toClassString == "xxxx") ZonedDateTimeType
+//    else if (ct.toClassString == "xxxx") DurationType
+    else if (ct.toClassString == "Point") PointType
+    else if (ct.toClassString == "List<Any>") ListType
+    else if (ct.toClassString == "List<String>") ListType
+    else if (ct.toClassString == "List<Integer>") ListType
+    else if (ct.toClassString == "List<Float>") ListType
+    else if (ct.toClassString == "List<Boolean>") ListType
+    else if (ct.toClassString == "List<Point>") ListType
+    else if (ct.toClassString == "Vector") VectorType
+    else UnknownType // non-useful types (Node, Relationship, Graph...) => UnknownType
+  }
+
   private def inferReturnedTypeFromFunction(f: FunctionInvocation): Option[PropertyType] = {
     val name = extractFunctionName(f)
-
-    name match {
-      // temporal “instant type” constructors
-      case "date"|"date.realtime"|"date.statement"|"date.transaction"|"date.truncate" => Some(DateType) // date(...) :: DATE :contentReference[oaicite:1]{index=1}
-      case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis"
-           |"datetime.realtime"|"datetime.statement"|"datetime.transaction"|"datetime.truncate"=> Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
-      case "localdatetime"|"localdatetime.realtime"|"localdatetime.statement"|"localdatetime.transaction"
-           |"localdatetime.truncate" => Some(LocalDateTimeType) // localdatetime(...) :: LOCAL DATETIME :contentReference[oaicite:3]{index=3}
-      case "time"|"time.realtime"|"time.statement"|"time.transaction"|"time.truncate" => Some(ZonedTimeType) // time(...) :: ZONED TIME :contentReference[oaicite:4]{index=4}
-      case "localtime"|"localtime.realtime"|"localtime.statement"|"localtime.transaction"|"localtime.truncate" => Some(LocalTimeType) // localtime(...) :: LOCAL TIME :contentReference[oaicite:5]{index=5}
-      case "duration"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => Some(DurationType) // duration(...) :: DURATION :contentReference[oaicite:6]{index=6}
-      //geo type
-      case "point" => Some(PointType) // point(...) :: POINT (see functions list) :contentreference[oaicite:7]{index=7}
-
-      // casting
-      case "toString"|"toStringOrNull" => Some(StringType) // toString(...) returns STRING :contentReference[oaicite:8]{index=8}
-      case "toInteger"|"toIntegerOrNull" => Some(IntegerType) // toInteger(...) returns INTEGER :contentReference[oaicite:9]{index=9}
-      case "toFloat"|"toFloatOrNull" => Some(FloatType) // toFloat(...) returns FLOAT :contentReference[oaicite:10]{index=10}
-      case "toBoolean"|"toBooleanOrNull" => Some(BooleanType) // toBoolean(...) returns BOOLEAN :contentReference[oaicite:11]{index=11}
-      //int returned
-      case "count"|"char_length"|"character_length"|"id"|"length"|"size"|"timestamp"
-            |"vector_dimension_count"|"apoc.coll.indexOf"|"apoc.text.distance" => Some(IntegerType)
-      case "e"|"exp"|"log"|"log10"|"sqrt"|"abs"|"rand"|"ceil"|"round"|"floor"|"point.distance"
-            |"percentileCont"|"percentileDisc"|"stDev"|"stDevP"|"sign"
-            | "acos"|"asin"|"atan"|"atan2"|"cos"|"cosh"|"cot"|"coth"|"degrees"
-            |"haversin"|"radians"|"sin"|"sinh"|"tan"|"tanh"
-            |"vector.similarity.cosine"|"vector.similarity.euclidean"|"vector_distance"|"vector_norm" => Some(FloatType)
-      //string returned
-      case "trim"|"ltrim"|"rtrim"|"toUpper"|"toLower"|"upper"|"lower"|"left"|"right"
-           |"normalize"|"substring"|"replace"|"format"|"db.nameFromElementId"
-           |"elementId"|"type"|"valueType"|"apoc.util.sha1" | "apoc.util.sha256"| "apoc.util.sha384"| "apoc.util.sha512"
-           |"apoc.util.md5" | "apoc.text.camelCase" | "apoc.text.base64Decode" | "apoc.text.base64Encode"
-           |"apoc.text.urlencode" | "apoc.text.urldecode"  => Some(StringType)
-      //list returned
-      case "collect"|"split"|"tail"|"toBooleanList"|"toFloatList"|"toIntegerList"|"toStringList"|"range"|"labels"
-            |"coll.distinct"|"coll.flatten"|"coll.insert"|"coll.remove"|"coll.sort"|"keys"
-            |"graph.names"|"nodes"|"relationships"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"
-            |"apoc.coll.insert" | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.toSet"
-            |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => Some(ListType)
-      //boolean
-      case "point.withinBBox"|"isEmpty" => Some(BooleanType)
-      //vector
-      case "vector" => Some(VectorType)
-      case _ =>
-        None
-    }
+    val registry = CypherFunctionRegistry.allFunctions //116 native functions
+    val cypherFunc = registry.get(name)
+    cypherFunc
+      .map(func => mapCypherTypeToPropertyType(func.signatures.head.outputType)) // several signatures? => pick first arbitrarily
+      .orElse(
+        //non-native functions : date-related, APOC, etc
+      name match {
+        // temporal “instant type” constructors
+        case "date"|"date.realtime"|"date.statement"|"date.transaction"|"date.truncate" => Some(DateType) // date(...) :: DATE :contentReference[oaicite:1]{index=1}
+        case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis"
+             |"datetime.realtime"|"datetime.statement"|"datetime.transaction"|"datetime.truncate"=> Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
+        case "localdatetime"|"localdatetime.realtime"|"localdatetime.statement"|"localdatetime.transaction"
+             |"localdatetime.truncate" => Some(LocalDateTimeType) // localdatetime(...) :: LOCAL DATETIME :contentReference[oaicite:3]{index=3}
+        case "time"|"time.realtime"|"time.statement"|"time.transaction"|"time.truncate" => Some(ZonedTimeType) // time(...) :: ZONED TIME :contentReference[oaicite:4]{index=4}
+        case "localtime"|"localtime.realtime"|"localtime.statement"|"localtime.transaction"|"localtime.truncate" => Some(LocalTimeType) // localtime(...) :: LOCAL TIME :contentReference[oaicite:5]{index=5}
+        case "duration"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => Some(DurationType) // duration(...) :: DURATION :contentReference[oaicite:6]{index=6}
+        //int returned
+        case "apoc.coll.indexOf"|"apoc.text.distance" => Some(IntegerType)
+        //string returned
+        case "db.nameFromElementId"
+             |"apoc.util.sha1" | "apoc.util.sha256"| "apoc.util.sha384"| "apoc.util.sha512"
+             |"apoc.util.md5" | "apoc.text.camelCase" | "apoc.text.base64Decode" | "apoc.text.base64Encode"
+             |"apoc.text.urlencode" | "apoc.text.urldecode"  => Some(StringType)
+        //list returned
+        case "graph.names"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"
+              |"apoc.coll.insert" | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.toSet"
+              |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => Some(ListType)
+        case _ =>
+          None
+      }
+      )
   }
   def toDTO(p: PropertyDescriptor): PropertyDescriptorDTO =
     PropertyDescriptorDTO(

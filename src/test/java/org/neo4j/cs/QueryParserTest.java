@@ -221,6 +221,7 @@ public class QueryParserTest {
         Model m = p.parseQuery("MATCH (x:Node) " +
                 "WHERE toInteger(x.b) = x.a " +
                 "AND  x.a2 = toInteger(x.b2)" +
+                "AND  x.f2 = toFloat(x.g2)" +
                 "AND id(x) = x.id " +
                 "RETURN log10(x.v)");
         Set<Property> expectedProperties = Set.of(
@@ -228,6 +229,8 @@ public class QueryParserTest {
                 new Property("b", "UNKNOWN"),
                 new Property("a2", "Number"),
                 new Property("b2", "UNKNOWN"),
+                new Property("f2", "Number"),
+                new Property("g2", "UNKNOWN"),
                 new Property("v", "Number"),
                 new Property("id", "Number")
         );
@@ -479,4 +482,15 @@ public class QueryParserTest {
         assertEquals(Set.of("Document"), m.getRelationshipTypes().get("HAS_PERSON").getSourceNodeLabels());
         assertEquals(Set.of("Person", "Document"), m.getRelationshipTypes().get("HAS_PERSON").getTargetNodeLabels());
     }
+
+    @Test
+    void shouldInferPropertyType_listFunctionReturn() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:Node) WHERE n.x = toStringList([1,2]) RETURN *");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+        Set<Property> expectedProperties = Set.of(
+                new Property("x", "List"));
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
+    }
+
 }
