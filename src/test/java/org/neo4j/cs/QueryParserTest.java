@@ -238,8 +238,14 @@ public class QueryParserTest {
     void shouldInferPropertyTypeFunctions_vectors() {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH (x:Node) " +
-                "WHERE vector([1,2,3]) = x.a ");
-        assertEquals(Set.of(new Property("a", "Vector")), m.getNodeLabels().get("Node").getProperties());
+                "WHERE vector([1,2,3]) = x.a " +
+                "AND  vector_dimension_count(x.a2) = 256" );
+        assertEquals(
+                Set.of(
+                        new Property("a", "Vector"),
+                        new Property("a2", "Vector")
+                ),
+                m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test
@@ -421,6 +427,16 @@ public class QueryParserTest {
         assertEquals(expectedProperties, m.getNodeLabels().get("PersonList_v3").getProperties());
     }
 
+    @Test
+    void shouldInferPropertyType_apoc() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:Node) WHERE n.x = apoc.coll.union(n.y, [12]) RETURN *");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+        Set<Property> expectedProperties = Set.of(
+                new Property("x", "List"),
+                new Property("y", "List"));
+        assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
+    }
 
     @Test
     void shouldInferPropertyType_ambiguousTypes() {

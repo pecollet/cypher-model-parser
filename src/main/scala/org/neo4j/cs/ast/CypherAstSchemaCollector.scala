@@ -510,7 +510,8 @@ object CypherAstSchemaCollector {
     name match {
       case "upper"| "lower" | "toUpper" | "toLower" | "ltrim" | "rtrim"
          | "char_length" | "character_length"|"left"|"right"|"normalize"
-         | "replace" | "split" | "substring"| "apoc.text.replace" =>
+         | "replace" | "split" | "substring"| "apoc.text.replace"| "apoc.text.distance"
+         | "apoc.text.urlencode" | "apoc.text.urldecode" | "apoc.json.path" | "apoc.xml.parse" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, StringType)
           case None => env
@@ -533,7 +534,17 @@ object CypherAstSchemaCollector {
 
       case "head" |"tail" | "last"| "coll.distinct"| "coll.flatten" | "coll.indexOf"
            | "coll.insert" | "coll.max"|"coll.min" | "coll.remove" | "coll.sort"
-           | "toStringList" | "toBooleanList" =>
+           | "toStringList" | "toBooleanList" | "apoc.coll.elements" |"apoc.coll.split"
+           | "apoc.coll.zipToRows" | "apoc.coll.avg" | "apoc.coll.combinations"
+           | "apoc.coll.contains" | "apoc.coll.containsAll" | "apoc.coll.containsAllSorted"
+           | "apoc.coll.containsDuplicates" | "apoc.coll.containsSorted" | "apoc.coll.different"
+           | "apoc.coll.disjunction" | "apoc.coll.dropDuplicateNeighbors" | "apoc.coll.duplicates"
+           | "apoc.coll.duplicatesWithCount" | "apoc.coll.flatten" | "apoc.coll.frequencies"
+           | "apoc.coll.frequenciesAsMap" | "apoc.coll.indexOf" | "apoc.coll.insert"
+           | "apoc.coll.insertAll" | "apoc.coll.intersection" | "apoc.coll.isEqualCollection"
+           | "apoc.coll.max" | "apoc.coll.min" | "apoc.coll.occurrences" | "apoc.coll.pairs"
+           | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.sum"
+           | "apoc.coll.toSet" | "apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" =>
         f.arguments.lift(0).flatMap(propRef) match {
           case Some(p) => env.addType(p, ListType)
           case None => env
@@ -550,7 +561,11 @@ object CypherAstSchemaCollector {
           case Some(p) => env.addType(p, VectorType)
           case None => env
         }
-
+      case "apoc.when" =>
+        f.arguments.lift(0).flatMap(propRef) match {
+          case Some(p) => env.addType(p, BooleanType)
+          case None => env
+        }
       case _ => env
     }
   }
@@ -608,7 +623,7 @@ object CypherAstSchemaCollector {
       case "toBoolean"|"toBooleanOrNull" => Some(BooleanType) // toBoolean(...) returns BOOLEAN :contentReference[oaicite:11]{index=11}
       //int returned
       case "count"|"char_length"|"character_length"|"id"|"length"|"size"|"timestamp"
-            |"vector_dimension_count" => Some(IntegerType)
+            |"vector_dimension_count"|"apoc.coll.indexOf"|"apoc.text.distance" => Some(IntegerType)
       case "e"|"exp"|"log"|"log10"|"sqrt"|"abs"|"rand"|"ceil"|"round"|"floor"|"point.distance"
             |"percentileCont"|"percentileDisc"|"stDev"|"stDevP"|"sign"
             | "acos"|"asin"|"atan"|"atan2"|"cos"|"cosh"|"cot"|"coth"|"degrees"
@@ -617,11 +632,15 @@ object CypherAstSchemaCollector {
       //string returned
       case "trim"|"ltrim"|"rtrim"|"toUpper"|"toLower"|"upper"|"lower"|"left"|"right"
            |"normalize"|"substring"|"replace"|"format"|"db.nameFromElementId"
-           |"elementId"|"type"|"valueType" => Some(StringType)
+           |"elementId"|"type"|"valueType"|"apoc.util.sha1" | "apoc.util.sha256"| "apoc.util.sha384"| "apoc.util.sha512"
+           |"apoc.util.md5" | "apoc.text.camelCase" | "apoc.text.base64Decode" | "apoc.text.base64Encode"
+           |"apoc.text.urlencode" | "apoc.text.urldecode"  => Some(StringType)
       //list returned
       case "collect"|"split"|"tail"|"toBooleanList"|"toFloatList"|"toIntegerList"|"toStringList"|"range"|"labels"
             |"coll.distinct"|"coll.flatten"|"coll.insert"|"coll.remove"|"coll.sort"|"keys"
-            |"graph.names"|"nodes"|"relationships"  => Some(ListType)
+            |"graph.names"|"nodes"|"relationships"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"
+            |"apoc.coll.insert" | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.toSet"
+            |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => Some(ListType)
       //boolean
       case "point.withinBBox"|"isEmpty" => Some(BooleanType)
       //vector
