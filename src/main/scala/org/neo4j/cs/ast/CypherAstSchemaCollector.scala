@@ -34,6 +34,9 @@ object CypherAstSchemaCollector {
   case object VectorType     extends PropertyType
   case object UnknownType extends PropertyType
 
+  // Cache the function registry to avoid expensive repeated calls (116 native function included)
+  private lazy val cachedFunctionRegistry = CypherFunctionRegistry.allFunctions
+
   /** One “edge” in the pattern */
   final case class RelationshipDescriptor(
                                            relType: String,
@@ -506,8 +509,7 @@ object CypherAstSchemaCollector {
   // Helper: apply typing constraints for first parameter of known functions
   private def applyFunctionConstraints(env: Env, f: FunctionInvocation): Env = {
     val name = extractFunctionName(f)
-    val registry = CypherFunctionRegistry.allFunctions //116 native functions
-    val param1Type = registry.get(name)
+    val param1Type = cachedFunctionRegistry.get(name)
       .flatMap(_.signatures.headOption)      // Safely get first signature
       .flatMap(_.argumentTypes.headOption)   // Safely get first argument
       .map(mapCypherTypeToPropertyType)      // Convert if it exists
@@ -518,16 +520,16 @@ object CypherAstSchemaCollector {
                | "apoc.xml.parse" => StringType
           case "format"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => DateType
           case  "apoc.coll.elements" |"apoc.coll.split"
-                 | "apoc.coll.zipToRows" | "apoc.coll.avg" | "apoc.coll.combinations"
-                 | "apoc.coll.contains" | "apoc.coll.containsAll" | "apoc.coll.containsAllSorted"
-                 | "apoc.coll.containsDuplicates" | "apoc.coll.containsSorted" | "apoc.coll.different"
-                 | "apoc.coll.disjunction" | "apoc.coll.dropDuplicateNeighbors" | "apoc.coll.duplicates"
-                 | "apoc.coll.duplicatesWithCount" | "apoc.coll.flatten" | "apoc.coll.frequencies"
-                 | "apoc.coll.frequenciesAsMap" | "apoc.coll.indexOf" | "apoc.coll.insert"
-                 | "apoc.coll.insertAll" | "apoc.coll.intersection" | "apoc.coll.isEqualCollection"
-                 | "apoc.coll.max" | "apoc.coll.min" | "apoc.coll.occurrences" | "apoc.coll.pairs"
-                 | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.sum"
-                 | "apoc.coll.toSet" | "apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => ListType
+                | "apoc.coll.zipToRows" | "apoc.coll.avg" | "apoc.coll.combinations"
+                | "apoc.coll.contains" | "apoc.coll.containsAll" | "apoc.coll.containsAllSorted"
+                | "apoc.coll.containsDuplicates" | "apoc.coll.containsSorted" | "apoc.coll.different"
+                | "apoc.coll.disjunction" | "apoc.coll.dropDuplicateNeighbors" | "apoc.coll.duplicates"
+                | "apoc.coll.duplicatesWithCount" | "apoc.coll.flatten" | "apoc.coll.frequencies"
+                | "apoc.coll.frequenciesAsMap" | "apoc.coll.indexOf" | "apoc.coll.insert"
+                | "apoc.coll.insertAll" | "apoc.coll.intersection" | "apoc.coll.isEqualCollection"
+                | "apoc.coll.max" | "apoc.coll.min" | "apoc.coll.occurrences" | "apoc.coll.pairs"
+                | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.sum"
+                | "apoc.coll.toSet" | "apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => ListType
           case _ => UnknownType
         }
       )
@@ -572,13 +574,6 @@ object CypherAstSchemaCollector {
     else if (ct.toClassString == "Integer") IntegerType
     else if (ct.toClassString == "Float") FloatType
     else if (ct.toClassString == "Boolean") BooleanType
-      //date function are not in the list, so the below is not necessary
-//    else if (ct.toClassString == "xxxx") DateType
-//    else if (ct.toClassString == "xxxx") LocalTimeType
-//    else if (ct.toClassString == "xxxx") ZonedTimeType
-//    else if (ct.toClassString == "xxxx") LocalDateTimeType
-//    else if (ct.toClassString == "xxxx") ZonedDateTimeType
-//    else if (ct.toClassString == "xxxx") DurationType
     else if (ct.toClassString == "Point") PointType
     else if (ct.toClassString == "List<Any>") ListType
     else if (ct.toClassString == "List<String>") ListType
@@ -587,41 +582,47 @@ object CypherAstSchemaCollector {
     else if (ct.toClassString == "List<Boolean>") ListType
     else if (ct.toClassString == "List<Point>") ListType
     else if (ct.toClassString == "Vector") VectorType
+    //date function are not in the registry, so the below is not necessary
+    //    else if (ct.toClassString == "xxxx") DateType
+    //    else if (ct.toClassString == "xxxx") LocalTimeType
+    //    else if (ct.toClassString == "xxxx") ZonedTimeType
+    //    else if (ct.toClassString == "xxxx") LocalDateTimeType
+    //    else if (ct.toClassString == "xxxx") ZonedDateTimeType
+    //    else if (ct.toClassString == "xxxx") DurationType
     else UnknownType // non-useful types (Node, Relationship, Graph...) => UnknownType
   }
 
   private def inferReturnedTypeFromFunction(f: FunctionInvocation): Option[PropertyType] = {
     val name = extractFunctionName(f)
-    val registry = CypherFunctionRegistry.allFunctions //116 native functions
-    val cypherFunc = registry.get(name)
+    val cypherFunc = cachedFunctionRegistry.get(name)
     cypherFunc
       .map(func => mapCypherTypeToPropertyType(func.signatures.head.outputType)) // several signatures? => pick first arbitrarily
       .orElse(
         //non-native functions : date-related, APOC, etc
-      name match {
-        // temporal “instant type” constructors
-        case "date"|"date.realtime"|"date.statement"|"date.transaction"|"date.truncate" => Some(DateType) // date(...) :: DATE :contentReference[oaicite:1]{index=1}
-        case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis"
-             |"datetime.realtime"|"datetime.statement"|"datetime.transaction"|"datetime.truncate"=> Some(ZonedDateTimeType) // datetime(...) :: ZONED DATETIME :contentReference[oaicite:2]{index=2}
-        case "localdatetime"|"localdatetime.realtime"|"localdatetime.statement"|"localdatetime.transaction"
-             |"localdatetime.truncate" => Some(LocalDateTimeType) // localdatetime(...) :: LOCAL DATETIME :contentReference[oaicite:3]{index=3}
-        case "time"|"time.realtime"|"time.statement"|"time.transaction"|"time.truncate" => Some(ZonedTimeType) // time(...) :: ZONED TIME :contentReference[oaicite:4]{index=4}
-        case "localtime"|"localtime.realtime"|"localtime.statement"|"localtime.transaction"|"localtime.truncate" => Some(LocalTimeType) // localtime(...) :: LOCAL TIME :contentReference[oaicite:5]{index=5}
-        case "duration"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => Some(DurationType) // duration(...) :: DURATION :contentReference[oaicite:6]{index=6}
-        //int returned
-        case "apoc.coll.indexOf"|"apoc.text.distance" => Some(IntegerType)
-        //string returned
-        case "db.nameFromElementId"
-             |"apoc.util.sha1" | "apoc.util.sha256"| "apoc.util.sha384"| "apoc.util.sha512"
-             |"apoc.util.md5" | "apoc.text.camelCase" | "apoc.text.base64Decode" | "apoc.text.base64Encode"
-             |"apoc.text.urlencode" | "apoc.text.urldecode"  => Some(StringType)
-        //list returned
-        case "graph.names"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"
-              |"apoc.coll.insert" | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.toSet"
-              |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => Some(ListType)
-        case _ =>
-          None
-      }
+        name match {
+          // temporal “instant type” constructors
+          case "date"|"date.realtime"|"date.statement"|"date.transaction"|"date.truncate" => Some(DateType)
+          case "datetime"|"datetime.fromEpoch"|"datetime.fromEpochMillis"
+               |"datetime.realtime"|"datetime.statement"|"datetime.transaction"|"datetime.truncate"=> Some(ZonedDateTimeType)
+          case "localdatetime"|"localdatetime.realtime"|"localdatetime.statement"|"localdatetime.transaction"
+               |"localdatetime.truncate" => Some(LocalDateTimeType)
+          case "time"|"time.realtime"|"time.statement"|"time.transaction"|"time.truncate" => Some(ZonedTimeType)
+          case "localtime"|"localtime.realtime"|"localtime.statement"|"localtime.transaction"|"localtime.truncate" => Some(LocalTimeType)
+          case "duration"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => Some(DurationType)
+          //int returned
+          case "apoc.coll.indexOf"|"apoc.text.distance" => Some(IntegerType)
+          //string returned
+          case "db.nameFromElementId"
+               |"apoc.util.sha1" | "apoc.util.sha256"| "apoc.util.sha384"| "apoc.util.sha512"
+               |"apoc.util.md5" | "apoc.text.camelCase" | "apoc.text.base64Decode" | "apoc.text.base64Encode"
+               |"apoc.text.urlencode" | "apoc.text.urldecode"  => Some(StringType)
+          //list returned
+          case "graph.names"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"
+               |"apoc.coll.insert" | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.toSet"
+               |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => Some(ListType)
+          case _ =>
+            None
+        }
       )
   }
   def toDTO(p: PropertyDescriptor): PropertyDescriptorDTO =
@@ -647,10 +648,6 @@ object CypherAstSchemaCollector {
       }.getOrElse("UNKNOWN")
     )
 
-  /**
-   * Extract all simple label/type names from a label expression.
-   * Handles conjunctions / disjunctions / colon-chains; ignores wildcards & dynamic expressions.
-   */
   private def extractNamesFromLabelExpression(expr: LabelExpression): Set[String] = expr match {
     case Leaf(LabelName(name), bool)    => Set(name)
     case Leaf(RelTypeName(name), bool)  => Set(name)
@@ -662,7 +659,6 @@ object CypherAstSchemaCollector {
     case ColonDisjunction(l, r, bool)   => extractNamesFromLabelExpression(l) ++ extractNamesFromLabelExpression(r)
     case Negation(inner, bool)          => extractNamesFromLabelExpression(inner)
 
-    // Wildcards / dynamic names don’t give you a concrete schema token
     case Wildcard(_)              => Set.empty
     case DynamicLeaf(_, _)           => Set.empty
     case _ => Set.empty
