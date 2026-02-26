@@ -80,14 +80,14 @@ public class Obfuscator implements Callable<Integer>  {
         Path file;
     }
 
-    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query.")
+    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query. If absent the output is sent to stdout.")
     private Path outputFile;
 
     @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Dialects.class,
             defaultValue = "25", converter = CypherDialectConverter.class, description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to 25.")
     private CypherVersion dialect;
 
-    @CommandLine.Option(names = { "-p", "--pretty" }, description = "Always pretty print the resulting cypher, even if no obfuscation took place. Obfuscated cypher will be pretty printed in any case.")
+    @CommandLine.Option(names = { "-p", "--pretty" }, description = "Pretty print the resulting cypher. This option has no effect any more (no pretty printing).")
     private boolean pretty;
 
     private String prefix="";

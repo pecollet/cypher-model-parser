@@ -14,15 +14,21 @@ java -jar cypher-model-parser-x.y.z.jar queries.csv
 Full options:
 
 ```
-Usage: Parser [-hjV] [-l=layout-engine] [-o=OUTPUT-DIR] <queriesFile>
+Usage: Parser [-hjV] [-d=dialect] [-l=layout-engine] [-o=OUTPUT-DIR]
+              <queriesFile>
 Parses cypher queries in <queriesFile> and generates a PlantUML class diagram.
-<queriesFile>   The file containing the queries
--h, --help          Show this help message and exit.
--j, --json          Export JSON model.
--l, --layout-engine=layout-engine          The layout engine to use when exporting a diagram picture : [SMETANA|DOT]. If not specified, an attempt is made to use DOT if present. DOT requires the presence of the graphviz module on the system
--o, --output-dir=OUTPUT-DIR
-The directory where the output files are written
--V, --version       Print version information and exit.
+      <queriesFile>       The file containing the queries
+  -d, --dialect=dialect   The cypher dialect, one of : [5, 25]. Defaults to 25.
+  -h, --help              Show this help message and exit.
+  -j, --json              Export JSON model.
+  -l, --layout-engine=layout-engine
+                          The layout engine to use when exporting a diagram
+                            picture : [SMETANA|DOT]. If not specified, an
+                            attempt is made to use DOT if present. DOT requires
+                            the presence of the graphviz module on the system.
+  -o, --output-dir=OUTPUT-DIR
+                          The directory where the output files are written
+  -V, --version           Print version information and exit.
 ```
 
 This will produce :
@@ -30,9 +36,17 @@ This will produce :
 - `model.puml` : text file with the plantUML description of the class diagram, shall you want to  edit it.
 - optionally `model.json` : the json representation of the model, for any programmatic post-processing
 
+Notes: 
+- The class diagram will contain node labels (N), relationship types (R) and their properties. 
+- Property types, where possible, are inferred from expressions where properties are evaluated against typed literals or used in functions with known signatures (native functions & some APOC)
+- Relationships for which the direction is unknown (extracted from undirected patterns) will be shown with dotted lines
+- Cypher patterns with unlabelled nodes may result in missing source or target association for Relationship classes
+- multi-labeled nodes : each label is considered as a class (as opposed to each labels combinations mapping to a class)
+- in label expressions (ex: `(:A|(B&!C))`) the presence of a label is sufficient for it to be included (even if negated)
+- properties are matched to their parent enty via entity variables. In some cases, when the same variable is reused is various scopes, that may result is incorrect property attribution.
 
 **Pre-requisites:**
-- JRE 17
+- JRE 21
 - having an input CSV file, single column, with 1 query per line (quoted), no headers.
 
 
@@ -69,27 +83,30 @@ java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.Obfuscator <query_string>
 Full options:
 
 ```
-Usage: Obfuscator [-hpV] [-d=dialect] <query>
+Usage: Obfuscator [-hpV] [-d=dialect] [-o=<outputFile>] (CYPHER |
+                  -f=CYPHER_FILE)
 Obfuscate literal values in cypher query.
-      <query>             The query to obfuscate
-  -d, --dialect=dialect   The cypher dialect : [NEO4J_5|NEO4J_4]. Defaults to
-                            NEO4J_5.
-  -h, --help              Show this help message and exit.
-  -p, --pretty            Always pretty print the resulting cypher, even if no
-                            obfuscation took place. Obfuscated cypher will be
-                            pretty printed in any case.
-  -V, --version           Print version information and exit.
+      CYPHER               The query to obfuscate
+  -d, --dialect=dialect    The cypher dialect, one of : [5, 25]. Defaults to 25.
+  -f, --file=CYPHER_FILE   Read CYPHER query from this file
+  -h, --help               Show this help message and exit.
+  -o, --output=<outputFile>
+                           Output file generated, containing the obfuscated
+                             query. If absent the output is sent to stdout.
+  -p, --pretty             Pretty print the resulting cypher. This option has
+                             no effect any more (no pretty printing).
+  -V, --version            Print version information and exit.
 ```
 
 This will return the obfuscated query on stdout.
 
-Obfuscation rules: 
-- all characters strings are replaced by '****'
-- all digits in numbers are replaced by *
+Obfuscation rule: 
+- all literals are replaced by ****
+- no change is made to the general formatting of the query
 
 Example: 
 ```
 > java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.Obfuscator "MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE movie.title CONTAINS 'sdfdg' or r.x = 12 or r.y IN [1290,'gh'] RETURN movie.title, r.role"
 
-MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE (movie.title CONTAINS '****' OR r.x = ** OR r.y IN [****, '****']) RETURN movie.title, r.role
+MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE movie.title CONTAINS **** or r.x = **** or r.y IN [****,****] RETURN movie.title, r.role
 ```
