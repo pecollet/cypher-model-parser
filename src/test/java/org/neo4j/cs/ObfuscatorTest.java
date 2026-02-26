@@ -2,23 +2,14 @@ package org.neo4j.cs;
 
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-import org.neo4j.cypherdsl.core.Expression;
-import org.neo4j.cypherdsl.core.renderer.Configuration;
-import org.neo4j.cypherdsl.core.renderer.Dialect;
-import org.neo4j.cypherdsl.core.renderer.Renderer;
-import org.neo4j.cypherdsl.parser.CypherParser;
-import org.neo4j.cypherdsl.parser.ExpressionCreatedEventType;
-import org.neo4j.cypherdsl.parser.Options;
 import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemErr;
 import static com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized;
-
-
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,18 +18,43 @@ public class ObfuscatorTest {
 
     @Test
     void shouldObfuscateStrings() throws Exception {
-        String query="MATCH (n:Label) WHERE n.name = 'something' RETURN n";
+        String query="MATCH (n:Label {name: 'bob'}) WHERE n.name = 'something' RETURN n";
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("MATCH (n:Label)\n" +
-                    "WHERE n.name = '****'\n" +
-                    "RETURN n\n", outText);
+            assertEquals("MATCH (n:Label {name: ****}) WHERE n.name = **** RETURN n\n", outText);
         });
         assertEquals("", errText);
     }
+
+    @Test
+    void shouldObfuscateLists() throws Exception {
+        String query="MATCH (n:Label) WHERE n.name = ['something', 123, true] RETURN n";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("MATCH (n:Label) WHERE n.name = [****, ****, true] RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateMaps() throws Exception {
+        String query="MATCH (n:Label) WHERE n.name = {a: 'bc', b: [1, {x: 'hh'}]} RETURN 12 as u";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("MATCH (n:Label) WHERE n.name = {a: ****, b: [****, {x: ****}]} RETURN **** as u\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
 
     @Test
     void shouldObfuscateNumbers() throws Exception {
@@ -48,11 +64,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("MATCH (n:Label)\n" +
-                    "WHERE (n.name = ****\n" +
-                    "  OR n.id = ***\n" +
-                    "  OR n.gid = *)\n" +
-                    "RETURN n\n", outText);
+            assertEquals("MATCH (n:Label) WHERE n.name = **** or n.id=**** or n.gid=**** RETURN n\n", outText);
         });
         assertEquals("", errText);
     }
@@ -65,9 +77,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("MATCH (n:Label)\n" +
-                    "WHERE n.name = ******\n" +
-                    "RETURN n\n", outText);
+            assertEquals("MATCH (n:Label) WHERE n.name = **** RETURN n\n", outText);
         });
         assertEquals("", errText);
     }
@@ -80,9 +90,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query, "-p");
             });
-            assertEquals("MATCH (n:Label)\n" +
-                    "WHERE n.name = true\n" +
-                    "RETURN n\n", outText);
+            assertEquals(query+"\n", outText);
         });
         assertEquals("", errText);
     }
@@ -101,6 +109,20 @@ public class ObfuscatorTest {
         assertEquals("", errText);
     }
 
+    @Test
+    void shouldObfuscateSkipLimit() throws Exception {
+        String query="MATCH (n:Label) RETURN n SKIP 10 LIMIT 100";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("MATCH (n:Label) RETURN n SKIP **** LIMIT ****\n" , outText);
+        });
+        assertEquals("", errText);
+    }
+
+
 
     @Test
     void shouldNotObfuscateApocSubQueries() throws Exception {
@@ -109,12 +131,9 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("CALL apoc.periodic.iterate('MATCH (p:Person)\n" +
-                    "WHERE p.id = **\n" +
-                    "RETURN p', 'SET p:Actor', {\n" +
-                    "  batchSize: *****,\n" +
-                    "  parallel: true\n" +
-                    "})\n" , outText);
+            assertEquals("CALL apoc.periodic.iterate('MATCH (p:Person) " +
+                    "WHERE p.id = **** RETURN p', 'SET p:Actor', " +
+                    "{batchSize:****, parallel:true})\n" , outText);
         });
         assertEquals("", errText);
     }
@@ -132,7 +151,7 @@ public class ObfuscatorTest {
                     "UNWIND x as this\n" +
                     "RETURN this { .username, .codes } AS this\n" , outText);
         });
-        assertTrue(errText.contains("CyperDslParseException"));
+        assertTrue(errText.contains("SyntaxException"));
     }
 
     @Test
@@ -143,26 +162,46 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("CYPHER RUNTIME=PARALLEL\n" +
-                    "MATCH (n:Label)\n" +
-                    "WHERE n.name = '****'\n" +
-                    "RETURN n\n", outText);
+            assertEquals("CYPHER RUNTIME=PARALLEL\nMATCH (n:Label) WHERE n.name = **** RETURN n\n", outText);
         });
         assertEquals("", errText);
     }
 
     @Test
-    void shouldObfuscateCypher25() throws Exception {
+    void shouldObfuscateCypher25Prefix() throws Exception {
         String query="CYPHER 25<br>MATCH (n:Label) WHERE n.name = 'something' RETURN n";
 
         String errText = tapSystemErr(() -> {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("CYPHER 25\n" +
-                    "MATCH (n:Label)\n" +
-                    "WHERE n.name = '****'\n" +
-                    "RETURN n\n", outText);
+            assertEquals("CYPHER 25\nMATCH (n:Label) WHERE n.name = **** RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateCypher25() throws Exception {
+        String query="LET x = 3 MATCH (n:Label) WHERE n.name = x RETURN n";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query, "-d", "25");
+            });
+            assertEquals("LET x = **** MATCH (n:Label) WHERE n.name = x RETURN n\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateRemovedV4Syntax() throws Exception {
+        String query="MATCH (n:Label) WHERE exists(n.name) AND distance(n.prop, point({x:0, y:0})) > 12 RETURN 12 as x";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query );
+            });
+            assertEquals("MATCH (n:Label) WHERE exists(n.name) AND distance(n.prop, point({x:****, y:****})) > **** RETURN **** as x\n", outText);
         });
         assertEquals("", errText);
     }
@@ -175,10 +214,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("EXPLAIN\n" +
-                    "MATCH (n:Label)\n" +
-                    "WHERE n.name = '****'\n" +
-                    "RETURN n\n", outText);
+            assertEquals("EXPLAIN\nMATCH (n:Label) WHERE n.name = ****\nRETURN n\n", outText);
         });
         assertEquals("", errText);
     }
@@ -191,10 +227,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute(query);
             });
-            assertEquals("PROFILE\n" +
-                    "MATCH (n:Label)\n" +
-                    "WHERE n.name = '****'\n" +
-                    "RETURN n\n", outText);
+            assertEquals("PROFILE\nMATCH (n:Label) WHERE n.name = **** RETURN n\n", outText);
         });
         assertEquals("", errText);
     }
@@ -206,7 +239,7 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute("-f", inputFile, "-p");
             });
-            assertEquals("RETURN ***\n", outText);
+            assertEquals("RETURN ****\n", outText);
         });
         assertEquals("", errText);
     }
@@ -220,7 +253,7 @@ public class ObfuscatorTest {
                 new CommandLine(new Obfuscator()).execute(cypher, "-p", "-o", outputFile);
             });
             //read outputFile and assert its content
-            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
+            assertEquals("RETURN ****\n", Files.readString(Paths.get(outputFile)));
         });
         assertEquals("", errText);
     }
@@ -235,7 +268,7 @@ public class ObfuscatorTest {
                 new CommandLine(new Obfuscator()).execute("-f", inputFile, "-p", "-o", outputFile);
             });
             //read outputFile and assert its content
-            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
+            assertEquals("RETURN ****\n", Files.readString(Paths.get(outputFile)));
         });
         assertEquals("", errText);
     }
@@ -247,55 +280,67 @@ public class ObfuscatorTest {
             String outText = tapSystemOutNormalized(() -> {
                 new CommandLine(new Obfuscator()).execute("-f", inputFile, "-p");
             });
-            assertEquals("MATCH (s:Supplier)-[:IS_VENDOR]->(:Purchase_orders|Tollers_orders)-[:PLACED_IN]->(:Site), (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)\nRETURN *\n", outText);
+            assertEquals("MATCH (s:Supplier)-[:IS_VENDOR]->(:Purchase_orders|Tollers_orders)-[:PLACED_IN]->(:Site),\n      (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)\nRETURN *\n", outText);
         });
         assertEquals("", errText);
     }
 
-    @Test
-    void shouldRenderWithoutDroppingColons() throws Exception {
-        String cypher="MATCH (:PurchaseOrder|TollerOrder)-[:PLACED_IN]->(:Site), (po:Purchase_orders)<-[:IS_PURCHASED]-(m:Material)\nRETURN *";
-        var statement = CypherParser.parse(cypher);
-        Configuration rendererConfig = Configuration.newConfig()
-                .alwaysEscapeNames(false)
-                .withPrettyPrint(true)
-                .withDialect(Dialect.NEO4J_5)
-                .build();
-        var renderer = Renderer.getRenderer(rendererConfig);
 
-        String result = renderer.render(statement);
-        assertEquals(cypher, result);
+    @Test
+    void shouldObfuscateCypher25Syntaxes() throws Exception {
+        var queries = List.of(
+                "LET n = 1 RETURN n",
+                "RETURN 0 NEXT RETURN 1"
+        );
+        var expected = List.of(
+                "LET n = **** RETURN n\n",
+                "RETURN **** NEXT RETURN ****\n"
+        );
+        var i=0;
+        for (String query : queries) {
+
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query, "-d", "25");
+            });
+            assertEquals(expected.get(i++), outText);
+        }
     }
 
-//    @Test
-//    void shouldObfuscateOrderByWithoutNPE() throws Exception {
-//        String cypher="""
-//                MATCH (c:Content)
-//                WITH c WHERE c.name = 3
-//                ORDER BY c.publishedDate
-//                RETURN c
-//                """;
-//        String cypher2="""
-//                MATCH (c:Content)
-//                ORDER BY c.publishedDate
-//                RETURN c
-//                """;
-//
-//        String errText = tapSystemErr(() -> {
-//            String outText = tapSystemOutNormalized(() -> {
-//                new CommandLine(new Obfuscator()).execute(cypher, "-p");
-//            });
-////            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
-//        });
-//        assertEquals("", errText);
-//        errText = tapSystemErr(() -> {
-//            String outText = tapSystemOutNormalized(() -> {
-//                new CommandLine(new Obfuscator()).execute(cypher2, "-p");
-//            });
-////            assertEquals("RETURN ***\n", Files.readString(Paths.get(outputFile)));
-//        });
-//        assertEquals("", errText);
-//    }
-
+    @Test
+    void shouldObfuscateUnwindQuery() throws Exception {
+        String query= """
+                UNWIND range(1,1000000) as id
+                CALL (id) {
+                  CREATE (p:Product {id:id, embedding: [i IN range(1, 1536) | rand()]})\s
+                  WITH id, p\s
+                  UNWIND range(1, 1 + toInteger(round(10*rand()))) as j\s
+                  CREATE (e:Element {name:toString(id)+'-'+toString(j), embedding: [i IN range(1, 1536) | rand()]})\s
+                  CREATE (p)-[:HAS_ELEMENT]->(e)
+                } IN TRANSACTIONS OF 10000 ROWS
+                """;
+        String outText = tapSystemOutNormalized(() -> {
+            new CommandLine(new Obfuscator()).execute(query);
+        });
+        String expected = """
+                UNWIND range(****,****) as id
+                CALL (id) {
+                  CREATE (p:Product {id:id, embedding: [i IN range(****, ****) | rand()]})\s
+                  WITH id, p\s
+                  UNWIND range(****, **** + toInteger(round(*****rand()))) as j\s
+                  CREATE (e:Element {name:toString(id)+****+toString(j), embedding: [i IN range(****, ****) | rand()]})\s
+                  CREATE (p)-[:HAS_ELEMENT]->(e)
+                } IN TRANSACTIONS OF **** ROWS
+                """;
+        assertEquals(expected, outText);
+    }
+    @Test
+    void shouldObfuscatePlusMinusNumber() throws Exception {
+        String query= "RETURn +1, -23, 3+6, 45-3";
+        String outText = tapSystemOutNormalized(() -> {
+            new CommandLine(new Obfuscator()).execute(query);
+        });
+        String expected = "RETURn +****, ****, ****+****, ****-****\n";
+        assertEquals(expected, outText);
+    }
 
 }

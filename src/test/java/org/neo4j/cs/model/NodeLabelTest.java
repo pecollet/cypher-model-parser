@@ -12,9 +12,9 @@ public class NodeLabelTest {
         NodeLabel nl = new NodeLabel("Thing");
         nl.addProperty("name");
         nl.addProperty("age", "Number");
-        assertEquals("class \"Thing\" << (N,lightblue) >> {\n" +
+        assertEquals("class \"Thing\" N {\n" +
                 "    <&bar-chart> age\n" +
-                "    <&question-mark> name\n" +
+                "    ATTR(name)\n" +
                 "}", nl.asPlantUml());
     }
 

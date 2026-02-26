@@ -20,11 +20,13 @@ public class NodeLabel extends EntityType {
     }
 
     public String asPlantUml() {
-        String prefix = "class "+'"'+this.label+'"'+" << (N,lightblue) >> {\n";
+        String classDef = "class \"" + this.label + "\" N";
+        if (this.getProperties().isEmpty()) {
+            return classDef;
+        }
         String properties = this.getProperties().stream().sorted()
                 .map(p -> "    " + p.asPlantUml())
                 .collect(Collectors.joining("\n"));
-        String suffix = "\n}";
-        return prefix + properties + suffix;
+        return classDef + " {\n" + properties + "\n}";
     }
 }

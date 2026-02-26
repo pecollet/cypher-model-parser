@@ -32,14 +32,30 @@ public class RelationshipType  extends EntityType {
         return this;
     }
 
-    public String asPlantUml() {
+    public Set<String> addUndirectedNodelabels(Set<String> labels) {
+        this.undirectedNodeLabels.addAll(labels);
+        return this.undirectedNodeLabels;
+    }
+    public Set<String> addSourceNodeLabels(Set<String> labels) {
+        this.sourceNodeLabels.addAll(labels);
+        return this.sourceNodeLabels;
+    }
+    public Set<String> addTargetNodeLabels(Set<String> labels) {
+        this.targetNodeLabels.addAll(labels);
+        return this.targetNodeLabels;
+    }
 
-        String prefix = "class "+ '"' +this.type+'"'+" << (R,orange) >> {\n";
-        String properties = this.getProperties().stream().sorted()
-                .map(p -> "    " + p.asPlantUml())
-                .collect(Collectors.joining("\n"));
-        String suffix = "\n}";
-        String plantUml =  prefix + properties + suffix;
+    public String asPlantUml() {
+        String plantUml = "";
+        String classDef = "class "+ '"' +this.type+'"'+" R";
+        if (this.getProperties().isEmpty()) {
+            plantUml = classDef;
+        } else {
+            String properties = this.getProperties().stream().sorted()
+                    .map(p -> "    " + p.asPlantUml())
+                    .collect(Collectors.joining("\n"));
+            plantUml = classDef + " {\n" + properties + "\n}";
+        }
 
         String starts = this.sourceNodeLabels.stream()
                 .map ( lbl -> '"'+lbl+'"'+ " -- " +'"'+ this.type+ '"')

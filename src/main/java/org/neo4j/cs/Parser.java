@@ -6,6 +6,7 @@ import net.sourceforge.plantuml.FileFormat;
 import net.sourceforge.plantuml.FileFormatOption;
 import net.sourceforge.plantuml.SourceStringReader;
 import org.neo4j.cs.model.Model;
+import org.neo4j.cypher.internal.CypherVersion;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Parameters;
@@ -36,6 +37,8 @@ public class Parser implements Callable<Integer> {
     @Option(names = { "-j", "--json" }, description = "Export JSON model.")
     private boolean exportJson;
 
+    @Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Obfuscator.Dialects.class, defaultValue = "25", description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to 25.")
+    private CypherVersion dialect;
 
     @Override
     public Integer call() throws Exception {
@@ -78,7 +81,7 @@ public class Parser implements Callable<Integer> {
         System.out.println("Layout engine: " + layoutEngine.name());
 
         QueryParser parser = new QueryParser();
-        Model fullModel = parser.parseQueries(queries);
+        Model fullModel = parser.parseQueries(queries, dialect);
         //fullModel.filterIsolatedRelationships();
 
         if (exportJson) {
@@ -111,9 +114,12 @@ public class Parser implements Callable<Integer> {
         if (engine == LayoutEngine.SMETANA) layoutCommand = "!pragma layout smetana\n";
         String stylingCommands =  "scale max 900 width\n" +
                 "set namespaceSeparator none\n" +
-                "hide empty members\n";
+                "hide empty members\n" ;
+        String macros = "!define ATTR(x) <&question-mark> x\n" +
+                "!define N << (N,lightblue) >>\n" +
+                "!define R << (R,orange) >>\n";
         String suffix = "\n@enduml";
-        String plantUmlStr = prefix + layoutCommand + stylingCommands + m.asPlantUml() + suffix;
+        String plantUmlStr = prefix + layoutCommand + stylingCommands + macros + m.asPlantUml() + suffix;
 
         SourceStringReader reader = new SourceStringReader(plantUmlStr);
         try {

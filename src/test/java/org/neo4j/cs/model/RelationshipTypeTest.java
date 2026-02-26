@@ -22,8 +22,8 @@ public class RelationshipTypeTest {
         rt.setSourceNodeLabels(srcNodeLabels);
         rt.setTargetNodeLabels(targetNodeLabels);
         rt.setUndirectedNodeLabels(undirNodeLabels);
-        assertEquals(rt.asPlantUml(), "class \"HAS_CHILD\" << (R,orange) >> {\n" +
-                "    <&question-mark> from\n" +
+        assertEquals(rt.asPlantUml(), "class \"HAS_CHILD\" R {\n" +
+                "    ATTR(from)\n" +
                 "    <&bar-chart> to\n" +
                 "}\n" +
                 "\"Thing\" -- \"HAS_CHILD\"\n" +

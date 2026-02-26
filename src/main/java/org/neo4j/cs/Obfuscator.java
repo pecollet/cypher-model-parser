@@ -1,21 +1,24 @@
 package org.neo4j.cs;
 
-import org.neo4j.cypherdsl.core.*;
-import org.neo4j.cypherdsl.core.renderer.Configuration;
-import org.neo4j.cypherdsl.core.renderer.Dialect;
-import org.neo4j.cypherdsl.core.renderer.Renderer;
-import org.neo4j.cypherdsl.parser.*;
+import org.neo4j.cs.ast.AstUtils;
+import org.neo4j.cs.ast.CypherAstMasker;
+import org.neo4j.cs.ast.SimpleCypherExceptionFactory;
+import org.neo4j.cypher.internal.CypherVersion;
+import org.neo4j.cypher.internal.ast.Statement;
+import org.neo4j.cypher.internal.parser.ast.AstParser;
 import picocli.CommandLine;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.neo4j.cs.QueryFilter.*;
 
@@ -26,13 +29,44 @@ public class Obfuscator implements Callable<Integer>  {
 
     static class Dialects extends ArrayList<String> {
         Dialects() {
-            super( Arrays.stream(Dialect.values())
-                    .map(Dialect::name)
+            super( Arrays.stream(CypherVersion.values())
+                    .map(Object::toString)
                     .collect(Collectors.toList())
             );
         }
     }
-    private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
+    // for backwards compatibility with version <2 of this tool
+    static final Set<String> CYPHER_DSL_ALIASES = Set.of(
+            "NEO4J_5_23", "NEO4J_4", "NEO4J_5", "NEO4J_5_26"
+    );
+    static class CypherDialectConverter
+            implements CommandLine.ITypeConverter<CypherVersion> {
+        private static final Map<String, CypherVersion> LOOKUP =
+                Arrays.stream(CypherVersion.values())
+                        .collect(Collectors.toMap(
+                                v -> v.toString(),  // "5", "25", ...
+                                v -> v
+                        ));
+        @Override
+        public CypherVersion convert(String value) {
+            String normalized = value.trim();
+            // try proper CypherVersion values ("5", "25") first
+            CypherVersion v = LOOKUP.get(normalized);
+            if (v != null) return v;
+
+            // allow cypher-dsl dialects (for backwards compatibility), but always map to 5
+            if (CYPHER_DSL_ALIASES.contains(normalized)) {
+                return CypherVersion.Cypher5;
+            }
+            // Reject everything else
+            throw new CommandLine.TypeConversionException(
+                    "Invalid dialect: " + value +
+                            ". Expected one of: " + LOOKUP.keySet() + " or, for backwards compatibility, one of : " + CYPHER_DSL_ALIASES + " (which all map to '5')"
+            );
+        }
+    }
+
+//    private static final String OBFUSCATED_STRING = "****"; // Replace with the desired obfuscated text
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputCypherQuery input; // require exactly one: CYPHER or -f FILE
@@ -46,55 +80,17 @@ public class Obfuscator implements Callable<Integer>  {
         Path file;
     }
 
-//    @CommandLine.Parameters(description = "The query to obfuscate")
-//    private String query;
-
-//    @CommandLine.Option(names = { "-q", "--query" }, description = "The query to obfuscate.")
-//    private String query;
-//
-//    @CommandLine.Option(names = { "-f", "--file" }, description = "File containing the query to obfuscate.")
-//    private Path file;
-
-    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query.")
+    @CommandLine.Option(names = { "-o", "--output" }, description = "Output file generated, containing the obfuscated query. If absent the output is sent to stdout.")
     private Path outputFile;
 
-    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Dialects.class, defaultValue = "NEO4J_5_23", description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to NEO4J_5_23.")
-    private Dialect dialect;
+    @CommandLine.Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Dialects.class,
+            defaultValue = "25", converter = CypherDialectConverter.class, description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to 25.")
+    private CypherVersion dialect;
 
-    @CommandLine.Option(names = { "-p", "--pretty" }, description = "Always pretty print the resulting cypher, even if no obfuscation took place. Obfuscated cypher will be pretty printed in any case.")
+    @CommandLine.Option(names = { "-p", "--pretty" }, description = "Pretty print the resulting cypher. This option has no effect any more (no pretty printing).")
     private boolean pretty;
 
-    private Options options;
-    private Configuration rendererConfig;
-
-    private boolean hasBeenMasked=false;
-
     private String prefix="";
-
-    Function<Expression, Expression> maskLiteral = e -> {
-        if (e instanceof Literal) {
-            if (e instanceof StringLiteral) {
-                Statement subStatement;
-                try { //if string parses as a valid cypher statement, recurse
-                    subStatement = CypherParser.parse(((StringLiteral) e).getContent().toString(), this.options);
-                    var renderer = Renderer.getRenderer(this.rendererConfig);
-                    return Cypher.literalOf(renderer.render(subStatement));
-                } catch (Exception ex) {
-                    //otherwise, mask the string (general case)
-                    this.hasBeenMasked=true;
-                    return Cypher.literalOf(OBFUSCATED_STRING);
-                }
-            } else if (e instanceof NumberLiteral) {
-                //replace by nines (so it's still a valid number), keeping the same number of digits
-                String masked = "9".repeat(((NumberLiteral) e).asString().length());
-                long allNines = Long.parseLong(masked);
-                this.hasBeenMasked=true;
-                return Cypher.literalOf(allNines);
-            }
-            //booleans are voluntarily left out as they're unlikely to hold sensitive information
-        }
-        return e;
-    };
 
 
     String cleanupQuery(String query) {
@@ -126,68 +122,35 @@ public class Obfuscator implements Callable<Integer>  {
 
     @Override
     public Integer call() throws Exception {
-//        if (query == null && file == null) {
-//            System.err.println("One of the options -q or -f must be specified.");
-//            System.exit(8);
-//        }
-//        if (query != null && file != null) {
-//            System.err.println("Only one of the options -q or -f can be specified.");
-//            System.exit(9);
-//        }
+
         String q = (input.query != null)
                 ? input.query
                 : Files.readString(input.file).trim();
 
-        String result=q;
-        this.rendererConfig = Configuration.newConfig()
-                .alwaysEscapeNames(false)
-                .withPrettyPrint(true)
-                .withDialect(dialect).build();
-        this.options = Options.newOptions()
-                .withCallback(ExpressionCreatedEventType.ON_NEW_LITERAL,
-                        Expression.class,
-                        maskLiteral )
-                .build();
+        String result=q; //default to original query if parsing fails
 
         try {
-            var statement = CypherParser.parse(cleanupQuery(q), this.options);
+            var cleanQuery = cleanupQuery(q);
+            AstParser parser = AstUtils.getCypherParser(cleanQuery, dialect, new SimpleCypherExceptionFactory());
+            Statement statement = parser.singleStatement();
+            result = CypherAstMasker.maskLiterals(cleanQuery, statement, AstUtils.getNestedParser(dialect));
 
-            var renderer = Renderer.getRenderer(this.rendererConfig);
-
-            //all numbers are made of 9s. Replace by * in the final string, except if they're part of a word.
-            result = renderer.render(statement).replaceAll("(?<![A-Za-z0-8_]9*)9", "*");
-
-        } catch (CyperDslParseException e) {
-            System.err.println("### [CyperDslParseException] " + e + " : " +q );
-        } catch (UnsupportedCypherException e) {
-            System.err.println("### [UnsupportedCypherException] " + e + " : " + q);
         } catch (RuntimeException e){
             System.err.println("### [RuntimeException] " + e + " : " +e.getCause());
         } catch (Exception e) {
             System.err.println("### [Exception] " + e + " : " +q );
         }
 
-        //if no masking took place, we way want to just return the original query as-is, to avoid unnecessary formatting changes
-        String outputString;
-        int returnCode;
-        if (hasBeenMasked || pretty) {
-            outputString = prefix+result;
-            returnCode=0;
-        } else {
-            outputString = prefix+q;
-            returnCode=1;
-        }
+        String outputString = prefix+result;
         System.out.println(outputString);
         if (outputFile != null) {
             Files.writeString(outputFile, outputString+'\n');
         }
-        return returnCode;
-
+        return 0;
     }
 
     public static void main(String... args) {
         int exitCode = new CommandLine(new Obfuscator()).execute(args);
         System.exit(exitCode);
     }
-
 }
