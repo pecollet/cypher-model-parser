@@ -1,17 +1,21 @@
 package org.neo4j.cs;
 
-import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder;
+
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$;
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
 import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 
 /**
  * Command line client to profile Cypher queries against specific graph counts.
+ * curl -H "Authorization:Basic bmVvNGo6Y2hhbmdlbWU="  -H accept:application/json -H content-type:application/json -d '{"statements":[{"statement":"CALL db.stats.retrieve(\"GRAPH COUNTS\")"}]}' http://localhost:7474/db/neo4j/tx/commit > graphCounts.json
+ *
  */
 @CommandLine.Command(
         name = "QueryProfiler",
@@ -63,13 +67,15 @@ public class QueryProfiler implements Callable<Integer> {
             var builder = StatisticsBackedLogicalPlanningConfigurationBuilder$.MODULE$.newBuilder();
             var planner = builder
                     .processGraphCounts(rowData)
+//                    .enablePrintCostComparisons(true)
                     .build();
 
             // 3. Generate the plan
             var plan = planner.plan(cypher);
-
+            var planSteps = plan.toString().split("\n");
+            String[] planStepsTrimmed = Arrays.copyOf(planSteps, planSteps.length - 1);
             // 4. Output to stdout
-            System.out.println(plan);
+            System.out.println(Arrays.stream(planStepsTrimmed).collect(Collectors.joining("\n")));
 
             return 0;
         } catch (Exception e) {

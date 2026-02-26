@@ -24,7 +24,7 @@
         <dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.13.12</version>
+            <version>2.13.17</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
@@ -50,28 +50,17 @@
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-ast</artifactId>
+            <artifactId>neo4j-cypher-logical-plan-builder</artifactId>
             <version>${neo4j.version}</version>
-            <type>test-jar</type>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-cypher-ast-factory-tests</artifactId>
-            <version>${neo4j.version}</version>
-            <type>test-jar</type>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.neo4j</groupId>
-            <artifactId>neo4j-cypher-logical-plans</artifactId>
-            <version>2025.12.1</version>
-            <type>test-jar</type>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-graph-counts</artifactId>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-ast-test-util</artifactId>
             <version>${neo4j.version}</version>
         </dependency>
         <dependency>
@@ -98,13 +87,13 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.14.1</version>
+            <version>6.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
-            <version>5.14.1</version>
+            <version>6.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -190,6 +179,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+<!--                            <minimizeJar>true</minimizeJar>-->
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
                                 <filter>
