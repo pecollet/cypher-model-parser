@@ -1,6 +1,7 @@
 package org.neo4j.cs;
 
 
+import org.neo4j.cypher.graphcounts.GraphCountData;
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$;
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
 import picocli.CommandLine;
@@ -61,8 +62,14 @@ public class QueryProfiler implements Callable<Integer> {
         try {
             // 2. Parse JSON and instantiate Planner (based on your Scala snippet)
             // Note: Accessing .results().get(0)... is the Java equivalent of .head
-            var graphCountData = GraphCountsJson.parseAsGraphCountsJson(countsFile);
-            var rowData = graphCountData.results().head().data().head().row().data();
+            GraphCountData rowData;
+            try { //try reading the HTTP response format
+                var graphCountData = GraphCountsJson.parseAsGraphCountsJson(countsFile);
+                rowData = graphCountData.results().head().data().head().row().data();
+            } catch (Exception e) {
+//                System.out.println("Not a HTTP API repsonse");
+                rowData = GraphCountsJson.parseAsGraphCountDataFromCypherMap(countsFile);
+            }
 
             var builder = StatisticsBackedLogicalPlanningConfigurationBuilder$.MODULE$.newBuilder();
             var planner = builder
