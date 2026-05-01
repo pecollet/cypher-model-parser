@@ -7,7 +7,7 @@ import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpres
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
 import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 
-import java.util.{List => JList, Set => JSet}
+import java.util.{Collections, IdentityHashMap, List => JList, Set => JSet}
 import scala.jdk.CollectionConverters._
 import org.neo4j.cypher.internal.util.symbols._
 
@@ -297,9 +297,31 @@ object CypherAstSchemaCollector {
   }
 
   def collectRelationships(root: ASTNode): Seq[RelationshipDescriptor] = {
+    val labelPredicatesInOr =
+      Collections.newSetFromMap(new IdentityHashMap[LabelExpressionPredicate, java.lang.Boolean]())
+
     // 1. First Pass: Build a comprehensive map of variables to labels
     // This includes labels from NodePatterns and LabelExpressionPredicates (WHERE clause)
     val varLabelMap = root.folder.treeFold(Map.empty[String, Set[String]]) {
+      case Or(lhs: LabelExpressionPredicate, rhs: LabelExpressionPredicate) =>
+        acc => {
+          labelPredicatesInOr.add(lhs)
+          labelPredicatesInOr.add(rhs)
+          TraverseChildren(acc)
+        }
+
+      case Or(lhs: LabelExpressionPredicate, _) =>
+        acc => {
+          labelPredicatesInOr.add(lhs)
+          TraverseChildren(acc)
+        }
+
+      case Or(_, rhs: LabelExpressionPredicate) =>
+        acc => {
+          labelPredicatesInOr.add(rhs)
+          TraverseChildren(acc)
+        }
+
       case node: NodePattern =>
         acc => {
           val labels = nodeLabels(node, includeAll = false)
@@ -312,11 +334,15 @@ object CypherAstSchemaCollector {
           TraverseChildren(newAcc)
         }
 
-      case LabelExpressionPredicate(Variable(v), le) =>
+      case labelPredicate @ LabelExpressionPredicate(Variable(v), le) =>
         acc => {
-          val labels = extractNamesFromLabelExpressionSelectively(le)
-          val existing = acc.getOrElse(v, Set.empty)
-          TraverseChildren(acc.updated(v, existing ++ labels))
+          if (labelPredicatesInOr.contains(labelPredicate)) {
+            TraverseChildren(acc)
+          } else {
+            val labels = extractNamesFromLabelExpressionSelectively(le)
+            val existing = acc.getOrElse(v, Set.empty)
+            TraverseChildren(acc.updated(v, existing ++ labels))
+          }
         }
     }
 
