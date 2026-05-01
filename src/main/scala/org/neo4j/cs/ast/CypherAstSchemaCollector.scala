@@ -302,7 +302,7 @@ object CypherAstSchemaCollector {
     val varLabelMap = root.folder.treeFold(Map.empty[String, Set[String]]) {
       case node: NodePattern =>
         acc => {
-          val labels = nodeLabels(node)
+          val labels = nodeLabels(node, includeAll = false)
           val newAcc = node.variable match {
             case Some(v: LogicalVariable) =>
               val existing = acc.getOrElse(v.name, Set.empty)
@@ -314,7 +314,7 @@ object CypherAstSchemaCollector {
 
       case LabelExpressionPredicate(Variable(v), le) =>
         acc => {
-          val labels = extractNamesFromLabelExpression(le)
+          val labels = extractNamesFromLabelExpressionSelectively(le)
           val existing = acc.getOrElse(v, Set.empty)
           TraverseChildren(acc.updated(v, existing ++ labels))
         }
@@ -343,7 +343,7 @@ object CypherAstSchemaCollector {
 
           // Helper to resolve labels by checking both inline labels and the variable map
           def resolveLabels(node: NodePattern): Set[String] = {
-            val inlineLabels = nodeLabels(node)
+            val inlineLabels = nodeLabels(node, includeAll=false)
             val mappedLabels = node.variable.collect {
               case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
             }.getOrElse(Set.empty)
@@ -388,13 +388,23 @@ object CypherAstSchemaCollector {
   def collectPropertiesDTO(root: ASTNode): JList[PropertyDescriptorDTO] =
     collectProperties(root).map(toDTO).asJava
 
-  /** Extract labels from a NodePattern’s labelExpression */
-  private def nodeLabels(node: NodePattern): Set[String] =
-    node.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+  /** Extract labels from a NodePattern’s labelExpression
+   * includeAll : if true all mentioned labels are collected. otherwise only those not negated and not part of a conjunction */
+  private def nodeLabels(node: NodePattern, includeAll: Boolean = true): Set[String] = {
+    if (includeAll) {
+      node.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+    } else {
+      node.labelExpression.map(extractNamesFromLabelExpressionSelectively).getOrElse(Set.empty)
+    }
+  }
 
   /** Extract relationship types from a RelationshipPattern’s labelExpression */
-  private def relationshipTypes(rel: RelationshipPattern): Set[String] =
-    rel.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+  private def relationshipTypes(rel: RelationshipPattern, includeAll: Boolean = true): Set[String] =
+    if (includeAll) {
+      rel.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+    } else {
+      rel.labelExpression.map(extractNamesFromLabelExpressionSelectively).getOrElse(Set.empty)
+    }
 
   /** Extract (key, propertyType) from a static map expression, if present. */
   private def extractMapProperties(expr: Expression): Seq[(String, Option[PropertyType])] = expr match {
@@ -649,6 +659,7 @@ object CypherAstSchemaCollector {
     )
 
   private def extractNamesFromLabelExpression(expr: LabelExpression): Set[String] = expr match {
+    //just collect all names used in the expression to inventory them
     case Leaf(LabelName(name), bool)    => Set(name)
     case Leaf(RelTypeName(name), bool)  => Set(name)
     case Leaf(LabelOrRelTypeName(name), bool)  => Set(name)
@@ -658,6 +669,22 @@ object CypherAstSchemaCollector {
     case ColonConjunction(l, r, bool)   => extractNamesFromLabelExpression(l) ++ extractNamesFromLabelExpression(r)
     case ColonDisjunction(l, r, bool)   => extractNamesFromLabelExpression(l) ++ extractNamesFromLabelExpression(r)
     case Negation(inner, bool)          => extractNamesFromLabelExpression(inner)
+
+    case Wildcard(_)              => Set.empty
+    case DynamicLeaf(_, _)           => Set.empty
+    case _ => Set.empty
+  }
+  private def extractNamesFromLabelExpressionSelectively(expr: LabelExpression): Set[String] = expr match {
+    //more restrictive interpretation : any disjonction causes the labels to be ignored
+    case Leaf(LabelName(name), bool)    => Set(name)
+    case Leaf(RelTypeName(name), bool)  => Set(name)
+    case Leaf(LabelOrRelTypeName(name), bool)  => Set(name)
+
+    case Conjunctions(children, bool)   => children.flatMap(extractNamesFromLabelExpressionSelectively).toSet
+    case Disjunctions(children, bool)   => Set.empty //OR disjunctions : which pattern actually exists is not guaranteed, so ignore
+    case ColonConjunction(l, r, bool)   => extractNamesFromLabelExpressionSelectively(l) ++ extractNamesFromLabelExpressionSelectively(r)
+    case ColonDisjunction(l, r, bool)   => Set.empty //OR disjunctions : which pattern actually exists is not guaranteed, so ignore
+    case Negation(inner, bool)          => Set.empty //negated labels should be excluded
 
     case Wildcard(_)              => Set.empty
     case DynamicLeaf(_, _)           => Set.empty
