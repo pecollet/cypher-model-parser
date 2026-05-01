@@ -557,7 +557,7 @@ public class QueryParserTest {
     }
 
     @Test
-    void shouldincludeConjointLabelsFromOrPredicates() {
+    void shouldIncludeConjointLabelsFromOrPredicates() {
         var p = new QueryParser();
         Model m = p.parseQuery(
                 "MATCH (n:A&B)-[:X|Y]->() RETURN *");
@@ -568,4 +568,30 @@ public class QueryParserTest {
         assertEquals(Set.of("A", "B"), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
     }
 
+    @Test
+    void shouldParseAcyclicIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH p = ACYCLIC (:Router {name: 'A'})-[:LINK]-+(:Router {name: 'Z'}) RETURN p");
+        assertEquals(Set.of("Router"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Router"), m.getRelationshipTypes().get("LINK").getUndirectedNodeLabels());
+        assertEquals(Set.of( new Property("name", "String")), m.getNodeLabels().get("Router").getProperties());
+    }
+
+    @Test
+    void shouldParseForIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("FOR i in [1,2,3] MATCH (n:Node) WHERE n.id = i RETURN n");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
+    }
+
+    @Test
+    void shouldParseIsLabeledIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n)-[:LINK]->() WHERE n IS LABELED !A&B AND n IS NOT LABELED C AND n IS NOT D RETURN n");
+        assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("B"), m.getRelationshipTypes().get("LINK").getSourceNodeLabels());
+    }
 }
