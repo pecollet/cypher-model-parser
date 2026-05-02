@@ -573,15 +573,22 @@ public class QueryParserTest {
         var p = new QueryParser();
         Model m = p.parseQuery("MATCH p = ACYCLIC (:Router {name: 'A'})-[:LINK]-+(:Router {name: 'Z'}) RETURN p");
         assertEquals(Set.of("Router"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("name", "String")), m.getNodeLabels().get("Router").getProperties());
         assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
         assertEquals(Set.of("Router"), m.getRelationshipTypes().get("LINK").getUndirectedNodeLabels());
-        assertEquals(Set.of( new Property("name", "String")), m.getNodeLabels().get("Router").getProperties());
     }
 
     @Test
     void shouldParseForIn2026_04() {
         var p = new QueryParser();
         Model m = p.parseQuery("FOR i in [1,2,3] MATCH (n:Node) WHERE n.id = i RETURN n");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
+    }
+    @Test
+    void shouldParseUnwind() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("UNWIND [1,2,3] as i MATCH (n:Node) WHERE n.id = i RETURN n");
         assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
         assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
     }

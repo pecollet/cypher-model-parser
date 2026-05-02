@@ -17,6 +17,15 @@ public final class SimpleCypherExceptionFactory implements CypherExceptionFactor
     }
 
     @Override
+    public RuntimeException syntaxException(
+            ErrorGqlStatusObject gqlStatus,
+            InputPosition pos,
+            Throwable cause
+    ) {
+        return new RuntimeException("Cypher syntax error at " + pos, cause);
+    }
+
+    @Override
     public RuntimeException internalError(String message, InputPosition pos) {
         return new RuntimeException(
                 "Internal Cypher parser error at " + pos + ": " + message
@@ -25,8 +34,8 @@ public final class SimpleCypherExceptionFactory implements CypherExceptionFactor
 
     @Override
     public RuntimeException insertExistsInOtherLanguageVersion(
-            String unsupportedVersion,
-            String supportedVersion,
+            int unsupportedVersion,
+            int supportedVersion,
             SyntaxException ex
     ) {
         return new RuntimeException(

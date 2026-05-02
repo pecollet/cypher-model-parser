@@ -86,6 +86,9 @@
                 <groupId>net.alchim31.maven</groupId>
                 <artifactId>scala-maven-plugin</artifactId>
                 <version>4.9.9</version>
+                <configuration>
+                    <compileOrder>ScalaThenJava</compileOrder>
+                </configuration>
                 <executions>
                     <execution>
                         <id>scala-compile-first</id>
@@ -113,7 +116,7 @@
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
-                            <version>1.18.46</version> </path>
+                            <version>1.18.42</version> </path>
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
