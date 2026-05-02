@@ -346,56 +346,124 @@ object CypherAstSchemaCollector {
         }
     }
 
+    def leftmostNode(pe: PatternElement): NodePattern = pe match {
+      case np: NodePattern       => np
+      case rc: RelationshipChain => leftmostNode(rc.element)
+      case ParenthesizedPath(part, _) => leftmostNode(part.element)
+      case other =>
+        throw new IllegalArgumentException(s"Unexpected pattern element: ${other.getClass.getName}")
+    }
+
     def rightmostNode(pe: PatternElement): NodePattern = pe match {
       case np: NodePattern       => np
-      case rc: RelationshipChain    => rightmostNode(rc.rightNode)
+      case rc: RelationshipChain => rightmostNode(rc.rightNode)
+      case ParenthesizedPath(part, _) => rightmostNode(part.element)
       case other =>
-        throw new IllegalArgumentException(s"Unexpected left pattern element: ${other.getClass.getName}")
+        throw new IllegalArgumentException(s"Unexpected pattern element: ${other.getClass.getName}")
+    }
+
+    def leftmostRelationshipChain(pe: PatternElement): Option[RelationshipChain] = pe match {
+      case rc: RelationshipChain =>
+        rc.element match {
+          case nested: RelationshipChain => leftmostRelationshipChain(nested)
+          case _                         => Some(rc)
+        }
+      case PathConcatenation(factors) =>
+        factors.view.flatMap(leftmostRelationshipChain).headOption
+      case qp: QuantifiedPath =>
+        leftmostRelationshipChain(qp.part.element)
+      case ParenthesizedPath(part, _) =>
+        leftmostRelationshipChain(part.element)
+      case _ =>
+        None
+    }
+
+    def rightmostRelationshipChain(pe: PatternElement): Option[RelationshipChain] = pe match {
+      case rc: RelationshipChain =>
+        Some(rc)
+      case PathConcatenation(factors) =>
+        factors.view.reverse.flatMap(rightmostRelationshipChain).headOption
+      case qp: QuantifiedPath =>
+        rightmostRelationshipChain(qp.part.element)
+      case ParenthesizedPath(part, _) =>
+        rightmostRelationshipChain(part.element)
+      case _ =>
+        None
+    }
+
+    // Helper to resolve labels by checking both inline labels and the variable map
+    def resolveLabels(node: NodePattern): Set[String] = {
+      val inlineLabels = nodeLabels(node, includeAll=false)
+      val mappedLabels = node.variable.collect {
+        case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
+      }.getOrElse(Set.empty)
+      inlineLabels ++ mappedLabels
+    }
+
+    def relationshipDescriptors(
+      chain: RelationshipChain,
+      extraLeftLabels: Set[String] = Set.empty,
+      extraRightLabels: Set[String] = Set.empty
+    ): Seq[RelationshipDescriptor] = {
+      val leftNode: NodePattern = chain.element match {
+        case np: NodePattern       => np
+        case rc: RelationshipChain => rightmostNode(rc)
+        case other =>
+          throw new IllegalArgumentException(s"Unexpected chain. left: ${other.getClass.getName}")
+      }
+      val rightNode: NodePattern  = chain.rightNode
+      val relPat: RelationshipPattern = chain.relationship
+      val dir: SemanticDirection = relPat.direction
+
+      val leftLabels = resolveLabels(leftNode) ++ extraLeftLabels
+      val rightLabels = resolveLabels(rightNode) ++ extraRightLabels
+
+      val (srcLabels, tgtLabels, undirLabels) =
+        dir match {
+          case SemanticDirection.OUTGOING =>
+            (leftLabels, rightLabels, Set.empty[String])
+          case SemanticDirection.INCOMING =>
+            (rightLabels, leftLabels, Set.empty[String])
+          case SemanticDirection.BOTH =>
+            (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
+        }
+
+      relationshipTypes(relPat).toSeq.map { t =>
+        RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
+      }
+    }
+
+    def qppBoundaryDescriptors(
+      qp: QuantifiedPath,
+      leftLabels: Set[String],
+      rightLabels: Set[String]
+    ): Seq[RelationshipDescriptor] = {
+      val element = qp.part.element
+      val leftDescriptors =
+        leftmostRelationshipChain(element).toSeq.flatMap(relationshipDescriptors(_, extraLeftLabels = leftLabels))
+      val rightDescriptors =
+        rightmostRelationshipChain(element).toSeq.flatMap(relationshipDescriptors(_, extraRightLabels = rightLabels))
+
+      leftDescriptors ++ rightDescriptors
     }
 
     // 2. Second Pass: Traverse RelationshipChains and resolve variables
     root.folder.treeFold(Seq.empty[RelationshipDescriptor]) {
-      case chain: RelationshipChain =>
+      case PathConcatenation(factors) =>
         acc => {
-          val leftNode: NodePattern = chain.element match {
-            case np: NodePattern       => np
-            case rc: RelationshipChain => rightmostNode(rc)
-            case other =>
-              throw new IllegalArgumentException(s"Unexpected chain. left: ${other.getClass.getName}")
-          }
-          val rightNode: NodePattern  = chain.rightNode
-          val relPat: RelationshipPattern = chain.relationship
-          val dir: SemanticDirection = relPat.direction
-
-          // Helper to resolve labels by checking both inline labels and the variable map
-          def resolveLabels(node: NodePattern): Set[String] = {
-            val inlineLabels = nodeLabels(node, includeAll=false)
-            val mappedLabels = node.variable.collect {
-              case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
-            }.getOrElse(Set.empty)
-            inlineLabels ++ mappedLabels
-          }
-
-          val leftLabels = resolveLabels(leftNode)
-          val rightLabels = resolveLabels(rightNode)
-
-          val (srcLabels, tgtLabels, undirLabels) =
-            dir match {
-              case SemanticDirection.OUTGOING =>
-                (leftLabels, rightLabels, Set.empty[String])
-              case SemanticDirection.INCOMING =>
-                (rightLabels, leftLabels, Set.empty[String])
-              case SemanticDirection.BOTH =>
-                (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
-            }
-
-          val relTypes = relationshipTypes(relPat)
-
-          val descriptors = relTypes.toSeq.map { t =>
-            RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
-          }
+          val descriptors = factors.zipWithIndex.collect {
+            case (qp: QuantifiedPath, index) =>
+              val leftLabels = factors.lift(index - 1).map(f => resolveLabels(rightmostNode(f))).getOrElse(Set.empty)
+              val rightLabels = factors.lift(index + 1).map(f => resolveLabels(leftmostNode(f))).getOrElse(Set.empty)
+              qppBoundaryDescriptors(qp, leftLabels, rightLabels)
+          }.flatten
 
           TraverseChildren(acc ++ descriptors)
+        }
+
+      case chain: RelationshipChain =>
+        acc => {
+          TraverseChildren(acc ++ relationshipDescriptors(chain))
         }
     }
   }
