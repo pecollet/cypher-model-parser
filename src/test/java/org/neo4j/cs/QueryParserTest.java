@@ -557,7 +557,7 @@ public class QueryParserTest {
     }
 
     @Test
-    void shouldincludeConjointLabelsFromOrPredicates() {
+    void shouldIncludeConjointLabelsFromOrPredicates() {
         var p = new QueryParser();
         Model m = p.parseQuery(
                 "MATCH (n:A&B)-[:X|Y]->() RETURN *");
@@ -568,4 +568,116 @@ public class QueryParserTest {
         assertEquals(Set.of("A", "B"), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
     }
 
+    @Test
+    void shouldParseAcyclicIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH p = ACYCLIC (:Router {name: 'A'})-[:LINK]-+(:Router {name: 'Z'}) RETURN p");
+        assertEquals(Set.of("Router"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("name", "String")), m.getNodeLabels().get("Router").getProperties());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Router"), m.getRelationshipTypes().get("LINK").getUndirectedNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedPathPatternFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (:Station { name: 'Denmark Hill' })<-[:CALLS_AT]-(d:Stop)
+                      ((:Stop)-[:NEXT]->(:Stop)){1,3}
+                      (a:Stop)-[:CALLS_AT]->(:Station { name: 'Clapham Junction' })
+                RETURN d.departs AS departureTime, a.arrives AS arrivalTime
+                """);
+
+        assertEquals(Set.of("Station", "Stop"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("CALLS_AT", "NEXT"), m.getRelationshipTypes().keySet());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("CALLS_AT").getSourceNodeLabels());
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("CALLS_AT").getTargetNodeLabels());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getSourceNodeLabels());
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedRelationshipFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (d:Station { name: 'Denmark Hill' })<-[:CALLS_AT]-
+                        (n:Stop)-[:NEXT]->{1,10}(m:Stop)-[:CALLS_AT]->
+                        (a:Station { name: 'Clapham Junction' })
+                WHERE m.arrives < time('17:18')
+                RETURN n.departs AS departureTime
+                """);
+
+        assertEquals(Set.of("Station", "Stop"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("CALLS_AT", "NEXT"), m.getRelationshipTypes().keySet());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("CALLS_AT").getSourceNodeLabels());
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("CALLS_AT").getTargetNodeLabels());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getSourceNodeLabels());
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedPathPatternWithGroupVariablesFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (:Station {name: 'Denmark Hill'})<-[:CALLS_AT]-(origin)
+                      ((l)-[r:NEXT]->(m)){1,3}
+                      ()-[:CALLS_AT]->(:Station {name: 'Clapham Junction'})
+                RETURN origin.departs + [stop in m | stop.departs] AS departureTimes,
+                       reduce(acc = 0.0, next in r | round(acc + next.distance, 2)) AS totalDistance
+                """);
+
+        assertEquals(Set.of("Station"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("CALLS_AT", "NEXT"), m.getRelationshipTypes().keySet());
+
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("CALLS_AT").getTargetNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("NEXT").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("NEXT").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedPathPatternWithInlinePredicateFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (bfr:Station {name: "London Blackfriars"}),
+                      (ndl:Station {name: "North Dulwich"})
+                MATCH p = (bfr)
+                          ((a)-[:LINK]-(b:Station)
+                            WHERE point.distance(a.location, ndl.location) >
+                              point.distance(b.location, ndl.location))+ (ndl)
+                RETURN reduce(acc = 0, r in relationships(p) | round(acc + r.distance, 2))
+                  AS distance
+                """);
+
+        assertEquals(Set.of("Station"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("LINK").getUndirectedNodeLabels());
+    }
+
+    @Test
+    void shouldParseForIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("FOR i in [1,2,3] MATCH (n:Node) WHERE n.id = i RETURN n");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+//        assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
+    }
+    @Test
+    void shouldParseUnwind() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("UNWIND [1,2,3] as i MATCH (n:Node) WHERE n.id = i RETURN n");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+//        assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
+    }
+
+    @Test
+    void shouldParseIsLabeledIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n)-[:LINK]->() WHERE n IS LABELED !A&B AND n IS NOT LABELED C AND n IS NOT D RETURN n");
+        assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("B"), m.getRelationshipTypes().get("LINK").getSourceNodeLabels());
+    }
 }
