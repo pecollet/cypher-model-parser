@@ -168,7 +168,7 @@ object CypherAstSchemaCollector {
 
       case relPat: RelationshipPattern =>
         acc => {
-          val types = relationshipTypes(relPat)
+          val types = relationshipTypesEligibleForMetadata(relPat)
 
           // variable -> rel types
           val newRelVars = relPat.variable match {
@@ -428,8 +428,17 @@ object CypherAstSchemaCollector {
             (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
         }
 
-      relationshipTypes(relPat).toSeq.map { t =>
-        RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
+      val allTypes = relationshipTypes(relPat)
+      val metadataTypes = relationshipTypesEligibleForMetadata(relPat)
+
+      allTypes.toSeq.map { t =>
+        val labels =
+          if (metadataTypes.contains(t)) {
+            (srcLabels, tgtLabels, undirLabels)
+          } else {
+            (Set.empty[String], Set.empty[String], Set.empty[String])
+          }
+        RelationshipDescriptor(t, labels._1, labels._2, labels._3)
       }
     }
 
@@ -499,6 +508,20 @@ object CypherAstSchemaCollector {
     } else {
       rel.labelExpression.map(extractNamesFromLabelExpressionSelectively).getOrElse(Set.empty)
     }
+
+  private def relationshipTypesEligibleForMetadata(rel: RelationshipPattern): Set[String] = {
+    val allTypes = relationshipTypes(rel)
+    val selectiveTypes = relationshipTypes(rel, includeAll = false)
+
+    // Multiple relationship types in one pattern are alternatives, not a single
+    // schema assertion. Keep them in the inventory but do not attach properties
+    // or endpoint labels to each possible type.
+    if (allTypes.size == 1 && selectiveTypes == allTypes) {
+      allTypes
+    } else {
+      Set.empty
+    }
+  }
 
   /** Extract (key, propertyType) from a static map expression, if present. */
   private def extractMapProperties(expr: Expression): Seq[(String, Option[PropertyType])] = expr match {

@@ -522,14 +522,14 @@ public class QueryParserTest {
     void shouldExcludeNegatedAndDisjointLabelsFromLabelExpressions() {
         var p = new QueryParser();
         Model m = p.parseQuery(
-                "MATCH (:A&(B|C)&!D)-[:X|Y]->()  RETURN *");
+                "MATCH ()-[:Z]-(:A&(B|C)&!D)-[:X|Y]->()  RETURN *");
         //TODO : what is expected here?
         assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet()); // All mentioned labels should be present
-        assertEquals(Set.of("X", "Y"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
-        // X & Y : should they expect source A only? nothing?
-        // certainly not D
-        assertEquals(Set.of("A"), m.getRelationshipTypes().get("X").getSourceNodeLabels());
-        assertEquals(Set.of("A"), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+        assertEquals(Set.of("X", "Y", "Z"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // X & Y are alternative relationship types, so neither should inherit endpoint labels.
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+        assertEquals(Set.of("A"), m.getRelationshipTypes().get("Z").getUndirectedNodeLabels());
     }
 
     @Test
@@ -560,13 +560,36 @@ public class QueryParserTest {
     void shouldIncludeConjointLabelsFromOrPredicates() {
         var p = new QueryParser();
         Model m = p.parseQuery(
-                "MATCH (n:A&B)-[:X|Y]->() RETURN *");
+                "MATCH ()-[:Z {x: 12}]->(n:A&B)-[:X|Y {x: 12}]->() RETURN *");
         assertEquals(Set.of("A", "B"), m.getNodeLabels().keySet()); // All mentioned labels should be present
-        assertEquals(Set.of("X", "Y"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
-        // X & Y : no source nodes
-        assertEquals(Set.of("A", "B"), m.getRelationshipTypes().get("X").getSourceNodeLabels());
-        assertEquals(Set.of("A", "B"), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+        assertEquals(Set.of("X", "Y", "Z"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // X & Y are alternative relationship types, so neither should inherit endpoint labels.
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+        assertEquals(Set.of("A", "B"), m.getRelationshipTypes().get("Z").getTargetNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getProperties());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getProperties());
+        assertEquals(Set.of(new Property("x", "Number")), m.getRelationshipTypes().get("Z").getProperties());
     }
+
+    @Test
+    void shouldExcludeConjointTypes() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH (a)-[r:`A`|`B`|`C`]-(o)\n" +
+                "    WHERE elementId(a) IN $ids AND r.weight = 1 AND (o:`X`) AND NOT elementId(o) IN $excludeNodesIds\n" +
+                "    RETURN COUNT(DISTINCT o) AS nodeCount");
+        assertEquals(Set.of("X"), m.getNodeLabels().keySet()); // All mentioned labels should be present
+        assertEquals(Set.of("A", "B", "C"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // currently Set.of("X") is returned for all relationshipTypes A, B & C
+        assertEquals(Set.of(), m.getRelationshipTypes().get("A").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("B").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("C").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("A").getProperties());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("B").getProperties());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("C").getProperties());
+    }
+
 
     @Test
     void shouldParseAcyclicIn2026_04() {
