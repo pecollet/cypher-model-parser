@@ -181,6 +181,35 @@ public class ObfuscatorTest {
     }
 
     @Test
+    void shouldObfuscateCypher5Prefix() throws Exception {
+        String query="CYPHER 5\n" +
+                "MATCH (acc:Account)\n" +
+                "WHERE acc.userPrincipal IN [\"X273725@A.XXX.COM\",\"X148468@A.XXX.COM\"]\n" +
+                "RETURN acc";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query);
+            });
+            assertEquals("CYPHER 5\nMATCH (acc:Account)\nWHERE acc.userPrincipal IN [****,****]\nRETURN acc\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
+    void shouldObfuscateQueryWithAsterisksString() throws Exception {
+        String query="RETURN '********' as x";
+
+        String errText = tapSystemErr(() -> {
+            String outText = tapSystemOutNormalized(() -> {
+                new CommandLine(new Obfuscator()).execute(query, "-p");
+            });
+            assertEquals("RETURN **** as x\n", outText);
+        });
+        assertEquals("", errText);
+    }
+
+    @Test
     void shouldObfuscateCypher25() throws Exception {
         String query="LET x = 3 MATCH (n:Label) WHERE n.name = x RETURN n";
 
