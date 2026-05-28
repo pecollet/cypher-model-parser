@@ -18,6 +18,8 @@ public class QueryFilter {
     protected static String prefixRegex_OPERATORENGINE="(?:operatorEngine=(?:compiled|interpreted|default)\\s+)?";
     protected static String prefixRegex_IPF="(?:interpretedPipesFallback=(?:default|disabled|whitelisted_plans_only|all)\\s+)?";
     protected static String prefixRegex_REPLAN="(?:replan=(?:default|force|skip)\\s+)?";
+    protected static String prefixRegex_PARALLEL="(?:parallelRepeatHeuristic=(?:enabled|disabled)\\s+)?";
+    protected static String prefixRegex_BATCH="(?:transactionBatchStrategy=(?:default|none|auto)\\s+)?";
 
     public List<String> filter(List<String> queries) {
         return queries.stream()
@@ -40,7 +42,9 @@ public class QueryFilter {
                                             + prefixRegex_EXPRESSIONENGINE
                                             + prefixRegex_OPERATORENGINE
                                             + prefixRegex_IPF
-                                            + prefixRegex_REPLAN,
+                                            + prefixRegex_REPLAN
+                                            + prefixRegex_PARALLEL
+                                            + prefixRegex_BATCH,
                                 "")
                            .replaceAll("(?i)"+ "^PROFILE","")
                            .trim()
