@@ -72,4 +72,32 @@ public class QueryProfilerTest {
             new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "-s", "invalid_format");
         });
     }
+
+    @Test
+    void testActualOutput() throws Exception {
+        String countsFilePath = "src/test/resources/direct_graphcounts.json";
+        String query = "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                "-c", countsFilePath,
+                "-q", query,
+                "-v", "5",
+                "-s", "block"
+            );
+            assertEquals(0, exitCode);
+        });
+
+        System.out.println("--- CAPTURED PLAN OUTPUT (Cypher 5, Block) ---");
+        System.out.println(outText);
+        System.out.println("----------------------------------------------");
+
+        // Basic assertions on the table structure and content
+        assertTrue(outText.contains("Operator"));
+        assertTrue(outText.contains("Details"));
+        assertTrue(outText.contains("ProduceResults"));
+        assertTrue(outText.contains("Filter"));
+        assertTrue(outText.contains("ExpandAll"));
+        assertTrue(outText.contains("NodeByLabelScan"));
+    }
 }
