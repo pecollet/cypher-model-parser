@@ -6,6 +6,6 @@ model.json
 *.iml
 .DS_Store
 src/test/resources/shouldObfuscateIntoFile_output.txt
+/.m2-test
 /.m2-updates
 /.m2
-/.m2-test
