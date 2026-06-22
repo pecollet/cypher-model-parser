@@ -85,10 +85,9 @@ public class QueryProfiler implements Callable<Integer> {
 
             // 3. Generate the plan
             var plan  = planner.plan(CypherVersion.Cypher5, cypher);
-            var planSteps = plan.toString().split("\n");
-            String[] planStepsTrimmed = Arrays.copyOf(planSteps, planSteps.length - 1);
-            // 4. Output to stdout
-            System.out.println(Arrays.stream(planStepsTrimmed).collect(Collectors.joining("\n")));
+            // 4. Output formatted table plan to stdout
+            var formatter = new TablePlanFormatter();
+            System.out.println(formatter.formatPlan(plan));
 
             return 0;
         } catch (Exception e) {

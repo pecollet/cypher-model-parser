@@ -116,6 +116,7 @@
                 <version>4.9.9</version>
                 <configuration>
                     <compileOrder>ScalaThenJava</compileOrder>
+                    <sendJavaToScalac>false</sendJavaToScalac>
                 </configuration>
                 <executions>
                     <execution>
