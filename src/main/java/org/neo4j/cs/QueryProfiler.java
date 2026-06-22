@@ -3,6 +3,7 @@ package org.neo4j.cs;
 
 import org.neo4j.cypher.graphcounts.GraphCountData;
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder;
+import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder.DatabaseFormat;
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder.DatabaseFormat.*;
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$;
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
@@ -34,7 +35,23 @@ public class QueryProfiler implements Callable<Integer> {
             paramLabel = "JSON_FILE",
             description = "Path to the JSON file containing graph counts."
     )
-    private File countsFile;
+    File countsFile;
+
+    @CommandLine.Option(
+            names = {"-v", "--cypher-version"},
+            defaultValue = "5",
+            converter = CypherVersionConverter.class,
+            description = "Cypher version to use for planning. Default is 5."
+    )
+    CypherVersion cypherVersion;
+
+    @CommandLine.Option(
+            names = {"-s", "--store-format"},
+            defaultValue = "block",
+            converter = StoreFormatConverter.class,
+            description = "Store format to use. Default is block."
+    )
+    DatabaseFormat storeFormat;
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputQuery input;
@@ -53,6 +70,50 @@ public class QueryProfiler implements Callable<Integer> {
                 description = "File containing the Cypher query."
         )
         Path queryFile;
+    }
+
+    static class CypherVersionConverter implements CommandLine.ITypeConverter<CypherVersion> {
+        private static final java.util.Map<String, CypherVersion> LOOKUP =
+                java.util.Arrays.stream(CypherVersion.values())
+                        .collect(java.util.stream.Collectors.toMap(
+                                v -> v.toString(),
+                                v -> v
+                        ));
+        @Override
+        public CypherVersion convert(String value) {
+            String normalized = value.trim();
+            CypherVersion v = LOOKUP.get(normalized);
+            if (v != null) return v;
+            throw new CommandLine.TypeConversionException(
+                    "Invalid Cypher version: " + value + ". Expected one of: " + LOOKUP.keySet()
+            );
+        }
+    }
+
+    static class StoreFormatConverter implements CommandLine.ITypeConverter<DatabaseFormat> {
+        @Override
+        public DatabaseFormat convert(String value) {
+            String normalized = value.trim().toLowerCase();
+            if ("block".equals(normalized)) {
+                try {
+                    return (DatabaseFormat) Class.forName("org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$DatabaseFormat$Block$")
+                            .getField("MODULE$").get(null);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else if ("aligned".equals(normalized)) {
+                try {
+                    return (DatabaseFormat) Class.forName("org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$DatabaseFormat$Aligned$")
+                            .getField("MODULE$").get(null);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                throw new CommandLine.TypeConversionException(
+                        "Invalid store format: " + value + ". Expected one of: [block, aligned]"
+                );
+            }
+        }
     }
 
     @Override
@@ -78,13 +139,13 @@ public class QueryProfiler implements Callable<Integer> {
             var planner = builder
                     .processGraphCounts(rowData)
 //                    .enablePrintCostComparisons(true)
-//                    .setDatabaseFormat(StatisticsBackedLogicalPlanningConfigurationBuilder.DatabaseFormat.Block)
+                    .setDatabaseFormat(storeFormat)
 //                    .addFunction(signature: UserFunctionSignature)
 //                    .withSetting(...)
                     .build();
 
             // 3. Generate the plan
-            var plan  = planner.plan(CypherVersion.Cypher5, cypher);
+            var plan  = planner.plan(cypherVersion, cypher);
             // 4. Output formatted table plan to stdout
             var formatter = new TablePlanFormatter();
             System.out.println(formatter.formatPlan(plan));
