@@ -7,7 +7,7 @@ import org.neo4j.cypher.internal.label_expressions.{LabelExpression, LabelExpres
 import org.neo4j.cypher.internal.util.Foldable.TraverseChildren
 import org.neo4j.cypher.internal.util.{ASTNode, Foldable}
 
-import java.util.{List => JList, Set => JSet}
+import java.util.{Collections, IdentityHashMap, List => JList, Set => JSet}
 import scala.jdk.CollectionConverters._
 import org.neo4j.cypher.internal.util.symbols._
 
@@ -168,7 +168,7 @@ object CypherAstSchemaCollector {
 
       case relPat: RelationshipPattern =>
         acc => {
-          val types = relationshipTypes(relPat)
+          val types = relationshipTypesEligibleForMetadata(relPat)
 
           // variable -> rel types
           val newRelVars = relPat.variable match {
@@ -297,12 +297,34 @@ object CypherAstSchemaCollector {
   }
 
   def collectRelationships(root: ASTNode): Seq[RelationshipDescriptor] = {
+    val labelPredicatesInOr =
+      Collections.newSetFromMap(new IdentityHashMap[LabelExpressionPredicate, java.lang.Boolean]())
+
     // 1. First Pass: Build a comprehensive map of variables to labels
     // This includes labels from NodePatterns and LabelExpressionPredicates (WHERE clause)
     val varLabelMap = root.folder.treeFold(Map.empty[String, Set[String]]) {
+      case Or(lhs: LabelExpressionPredicate, rhs: LabelExpressionPredicate) =>
+        acc => {
+          labelPredicatesInOr.add(lhs)
+          labelPredicatesInOr.add(rhs)
+          TraverseChildren(acc)
+        }
+
+      case Or(lhs: LabelExpressionPredicate, _) =>
+        acc => {
+          labelPredicatesInOr.add(lhs)
+          TraverseChildren(acc)
+        }
+
+      case Or(_, rhs: LabelExpressionPredicate) =>
+        acc => {
+          labelPredicatesInOr.add(rhs)
+          TraverseChildren(acc)
+        }
+
       case node: NodePattern =>
         acc => {
-          val labels = nodeLabels(node)
+          val labels = nodeLabels(node, includeAll = false)
           val newAcc = node.variable match {
             case Some(v: LogicalVariable) =>
               val existing = acc.getOrElse(v.name, Set.empty)
@@ -312,64 +334,145 @@ object CypherAstSchemaCollector {
           TraverseChildren(newAcc)
         }
 
-      case LabelExpressionPredicate(Variable(v), le) =>
+      case labelPredicate @ LabelExpressionPredicate(Variable(v), le) =>
         acc => {
-          val labels = extractNamesFromLabelExpression(le)
-          val existing = acc.getOrElse(v, Set.empty)
-          TraverseChildren(acc.updated(v, existing ++ labels))
+          if (labelPredicatesInOr.contains(labelPredicate)) {
+            TraverseChildren(acc)
+          } else {
+            val labels = extractNamesFromLabelExpressionSelectively(le)
+            val existing = acc.getOrElse(v, Set.empty)
+            TraverseChildren(acc.updated(v, existing ++ labels))
+          }
         }
+    }
+
+    def leftmostNode(pe: PatternElement): NodePattern = pe match {
+      case np: NodePattern       => np
+      case rc: RelationshipChain => leftmostNode(rc.element)
+      case ParenthesizedPath(part, _) => leftmostNode(part.element)
+      case other =>
+        throw new IllegalArgumentException(s"Unexpected pattern element: ${other.getClass.getName}")
     }
 
     def rightmostNode(pe: PatternElement): NodePattern = pe match {
       case np: NodePattern       => np
-      case rc: RelationshipChain    => rightmostNode(rc.rightNode)
+      case rc: RelationshipChain => rightmostNode(rc.rightNode)
+      case ParenthesizedPath(part, _) => rightmostNode(part.element)
       case other =>
-        throw new IllegalArgumentException(s"Unexpected left pattern element: ${other.getClass.getName}")
+        throw new IllegalArgumentException(s"Unexpected pattern element: ${other.getClass.getName}")
+    }
+
+    def leftmostRelationshipChain(pe: PatternElement): Option[RelationshipChain] = pe match {
+      case rc: RelationshipChain =>
+        rc.element match {
+          case nested: RelationshipChain => leftmostRelationshipChain(nested)
+          case _                         => Some(rc)
+        }
+      case PathConcatenation(factors) =>
+        factors.view.flatMap(leftmostRelationshipChain).headOption
+      case qp: QuantifiedPath =>
+        leftmostRelationshipChain(qp.part.element)
+      case ParenthesizedPath(part, _) =>
+        leftmostRelationshipChain(part.element)
+      case _ =>
+        None
+    }
+
+    def rightmostRelationshipChain(pe: PatternElement): Option[RelationshipChain] = pe match {
+      case rc: RelationshipChain =>
+        Some(rc)
+      case PathConcatenation(factors) =>
+        factors.view.reverse.flatMap(rightmostRelationshipChain).headOption
+      case qp: QuantifiedPath =>
+        rightmostRelationshipChain(qp.part.element)
+      case ParenthesizedPath(part, _) =>
+        rightmostRelationshipChain(part.element)
+      case _ =>
+        None
+    }
+
+    // Helper to resolve labels by checking both inline labels and the variable map
+    def resolveLabels(node: NodePattern): Set[String] = {
+      val inlineLabels = nodeLabels(node, includeAll=false)
+      val mappedLabels = node.variable.collect {
+        case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
+      }.getOrElse(Set.empty)
+      inlineLabels ++ mappedLabels
+    }
+
+    def relationshipDescriptors(
+      chain: RelationshipChain,
+      extraLeftLabels: Set[String] = Set.empty,
+      extraRightLabels: Set[String] = Set.empty
+    ): Seq[RelationshipDescriptor] = {
+      val leftNode: NodePattern = chain.element match {
+        case np: NodePattern       => np
+        case rc: RelationshipChain => rightmostNode(rc)
+        case other =>
+          throw new IllegalArgumentException(s"Unexpected chain. left: ${other.getClass.getName}")
+      }
+      val rightNode: NodePattern  = chain.rightNode
+      val relPat: RelationshipPattern = chain.relationship
+      val dir: SemanticDirection = relPat.direction
+
+      val leftLabels = resolveLabels(leftNode) ++ extraLeftLabels
+      val rightLabels = resolveLabels(rightNode) ++ extraRightLabels
+
+      val (srcLabels, tgtLabels, undirLabels) =
+        dir match {
+          case SemanticDirection.OUTGOING =>
+            (leftLabels, rightLabels, Set.empty[String])
+          case SemanticDirection.INCOMING =>
+            (rightLabels, leftLabels, Set.empty[String])
+          case SemanticDirection.BOTH =>
+            (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
+        }
+
+      val allTypes = relationshipTypes(relPat)
+      val metadataTypes = relationshipTypesEligibleForMetadata(relPat)
+
+      allTypes.toSeq.map { t =>
+        val labels =
+          if (metadataTypes.contains(t)) {
+            (srcLabels, tgtLabels, undirLabels)
+          } else {
+            (Set.empty[String], Set.empty[String], Set.empty[String])
+          }
+        RelationshipDescriptor(t, labels._1, labels._2, labels._3)
+      }
+    }
+
+    def qppBoundaryDescriptors(
+      qp: QuantifiedPath,
+      leftLabels: Set[String],
+      rightLabels: Set[String]
+    ): Seq[RelationshipDescriptor] = {
+      val element = qp.part.element
+      val leftDescriptors =
+        leftmostRelationshipChain(element).toSeq.flatMap(relationshipDescriptors(_, extraLeftLabels = leftLabels))
+      val rightDescriptors =
+        rightmostRelationshipChain(element).toSeq.flatMap(relationshipDescriptors(_, extraRightLabels = rightLabels))
+
+      leftDescriptors ++ rightDescriptors
     }
 
     // 2. Second Pass: Traverse RelationshipChains and resolve variables
     root.folder.treeFold(Seq.empty[RelationshipDescriptor]) {
-      case chain: RelationshipChain =>
+      case PathConcatenation(factors) =>
         acc => {
-          val leftNode: NodePattern = chain.element match {
-            case np: NodePattern       => np
-            case rc: RelationshipChain => rightmostNode(rc)
-            case other =>
-              throw new IllegalArgumentException(s"Unexpected chain. left: ${other.getClass.getName}")
-          }
-          val rightNode: NodePattern  = chain.rightNode
-          val relPat: RelationshipPattern = chain.relationship
-          val dir: SemanticDirection = relPat.direction
-
-          // Helper to resolve labels by checking both inline labels and the variable map
-          def resolveLabels(node: NodePattern): Set[String] = {
-            val inlineLabels = nodeLabels(node)
-            val mappedLabels = node.variable.collect {
-              case v: LogicalVariable => varLabelMap.getOrElse(v.name, Set.empty)
-            }.getOrElse(Set.empty)
-            inlineLabels ++ mappedLabels
-          }
-
-          val leftLabels = resolveLabels(leftNode)
-          val rightLabels = resolveLabels(rightNode)
-
-          val (srcLabels, tgtLabels, undirLabels) =
-            dir match {
-              case SemanticDirection.OUTGOING =>
-                (leftLabels, rightLabels, Set.empty[String])
-              case SemanticDirection.INCOMING =>
-                (rightLabels, leftLabels, Set.empty[String])
-              case SemanticDirection.BOTH =>
-                (Set.empty[String], Set.empty[String], leftLabels ++ rightLabels)
-            }
-
-          val relTypes = relationshipTypes(relPat)
-
-          val descriptors = relTypes.toSeq.map { t =>
-            RelationshipDescriptor(t, srcLabels, tgtLabels, undirLabels)
-          }
+          val descriptors = factors.zipWithIndex.collect {
+            case (qp: QuantifiedPath, index) =>
+              val leftLabels = factors.lift(index - 1).map(f => resolveLabels(rightmostNode(f))).getOrElse(Set.empty)
+              val rightLabels = factors.lift(index + 1).map(f => resolveLabels(leftmostNode(f))).getOrElse(Set.empty)
+              qppBoundaryDescriptors(qp, leftLabels, rightLabels)
+          }.flatten
 
           TraverseChildren(acc ++ descriptors)
+        }
+
+      case chain: RelationshipChain =>
+        acc => {
+          TraverseChildren(acc ++ relationshipDescriptors(chain))
         }
     }
   }
@@ -388,13 +491,37 @@ object CypherAstSchemaCollector {
   def collectPropertiesDTO(root: ASTNode): JList[PropertyDescriptorDTO] =
     collectProperties(root).map(toDTO).asJava
 
-  /** Extract labels from a NodePattern’s labelExpression */
-  private def nodeLabels(node: NodePattern): Set[String] =
-    node.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+  /** Extract labels from a NodePattern’s labelExpression
+   * includeAll : if true all mentioned labels are collected. otherwise only those not negated and not part of a conjunction */
+  private def nodeLabels(node: NodePattern, includeAll: Boolean = true): Set[String] = {
+    if (includeAll) {
+      node.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+    } else {
+      node.labelExpression.map(extractNamesFromLabelExpressionSelectively).getOrElse(Set.empty)
+    }
+  }
 
   /** Extract relationship types from a RelationshipPattern’s labelExpression */
-  private def relationshipTypes(rel: RelationshipPattern): Set[String] =
-    rel.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+  private def relationshipTypes(rel: RelationshipPattern, includeAll: Boolean = true): Set[String] =
+    if (includeAll) {
+      rel.labelExpression.map(extractNamesFromLabelExpression).getOrElse(Set.empty)
+    } else {
+      rel.labelExpression.map(extractNamesFromLabelExpressionSelectively).getOrElse(Set.empty)
+    }
+
+  private def relationshipTypesEligibleForMetadata(rel: RelationshipPattern): Set[String] = {
+    val allTypes = relationshipTypes(rel)
+    val selectiveTypes = relationshipTypes(rel, includeAll = false)
+
+    // Multiple relationship types in one pattern are alternatives, not a single
+    // schema assertion. Keep them in the inventory but do not attach properties
+    // or endpoint labels to each possible type.
+    if (allTypes.size == 1 && selectiveTypes == allTypes) {
+      allTypes
+    } else {
+      Set.empty
+    }
+  }
 
   /** Extract (key, propertyType) from a static map expression, if present. */
   private def extractMapProperties(expr: Expression): Seq[(String, Option[PropertyType])] = expr match {
@@ -649,6 +776,7 @@ object CypherAstSchemaCollector {
     )
 
   private def extractNamesFromLabelExpression(expr: LabelExpression): Set[String] = expr match {
+    //just collect all names used in the expression to inventory them
     case Leaf(LabelName(name), bool)    => Set(name)
     case Leaf(RelTypeName(name), bool)  => Set(name)
     case Leaf(LabelOrRelTypeName(name), bool)  => Set(name)
@@ -658,6 +786,22 @@ object CypherAstSchemaCollector {
     case ColonConjunction(l, r, bool)   => extractNamesFromLabelExpression(l) ++ extractNamesFromLabelExpression(r)
     case ColonDisjunction(l, r, bool)   => extractNamesFromLabelExpression(l) ++ extractNamesFromLabelExpression(r)
     case Negation(inner, bool)          => extractNamesFromLabelExpression(inner)
+
+    case Wildcard(_)              => Set.empty
+    case DynamicLeaf(_, _)           => Set.empty
+    case _ => Set.empty
+  }
+  private def extractNamesFromLabelExpressionSelectively(expr: LabelExpression): Set[String] = expr match {
+    //more restrictive interpretation : any disjonction causes the labels to be ignored
+    case Leaf(LabelName(name), bool)    => Set(name)
+    case Leaf(RelTypeName(name), bool)  => Set(name)
+    case Leaf(LabelOrRelTypeName(name), bool)  => Set(name)
+
+    case Conjunctions(children, bool)   => children.flatMap(extractNamesFromLabelExpressionSelectively).toSet
+    case Disjunctions(children, bool)   => Set.empty //OR disjunctions : which pattern actually exists is not guaranteed, so ignore
+    case ColonConjunction(l, r, bool)   => extractNamesFromLabelExpressionSelectively(l) ++ extractNamesFromLabelExpressionSelectively(r)
+    case ColonDisjunction(l, r, bool)   => Set.empty //OR disjunctions : which pattern actually exists is not guaranteed, so ignore
+    case Negation(inner, bool)          => Set.empty //negated labels should be excluded
 
     case Wildcard(_)              => Set.empty
     case DynamicLeaf(_, _)           => Set.empty

@@ -52,7 +52,7 @@ public class QueryParserTest {
         assertEquals(Set.of("Left", "Right", "Other", "Alt", "Alt2"), m.getNodeLabels().keySet());
         assertEquals(Set.of("HAS"), m.getRelationshipTypes().keySet());
 
-        assertEquals(Set.of("Left", "Alt", "Alt2"), m.getRelationshipTypes().get("HAS").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("HAS").getSourceNodeLabels());
         assertEquals(Set.of("Right", "Other"), m.getRelationshipTypes().get("HAS").getTargetNodeLabels());
     }
 
@@ -493,4 +493,214 @@ public class QueryParserTest {
         assertEquals(expectedProperties, m.getNodeLabels().get("Node").getProperties());
     }
 
+    @Test
+    void shouldSensiblyParseBloomQueries() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH (n) " +
+                "WHERE elementId(n) IN $nodeIds " +
+                "   AND ( n:`AML` OR n:`Account` OR n:`Alert` OR n:`BIC`)    " +
+                "RETURN n as n, null as r " +
+                "UNION " +
+                "UNWIND $relationshipIds as relId " +
+                "MATCH (n)-[r:`HAS`|`IN_POSTALCODE`]-(m) " +
+                "WHERE elementId(n) in $nodeIds and elementId(r) = relId and elementId(m) in $nodeIds " +
+                "AND (n:`AML` OR n:`Account` OR n:`Alert` OR n:`BIC`) " +
+                "AND (m:`AML` OR m:`Account` OR m:`Alert` OR m:`BIC`) " +
+                "RETURN null as n, r ");
+        assertEquals(Set.of("AML", "Account", "Alert", "BIC"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("HAS", "IN_POSTALCODE"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("HAS").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("HAS").getTargetNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("HAS").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("IN_POSTALCODE").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("IN_POSTALCODE").getTargetNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("IN_POSTALCODE").getUndirectedNodeLabels());
+    }
+
+    @Test
+    void shouldExcludeNegatedAndDisjointLabelsFromLabelExpressions() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH ()-[:Z]-(:A&(B|C)&!D)-[:X|Y]->()  RETURN *");
+        //TODO : what is expected here?
+        assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet()); // All mentioned labels should be present
+        assertEquals(Set.of("X", "Y", "Z"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // X & Y are alternative relationship types, so neither should inherit endpoint labels.
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+        assertEquals(Set.of("A"), m.getRelationshipTypes().get("Z").getUndirectedNodeLabels());
+    }
+
+    @Test
+    void shouldExcludeDisjointLabelsFromLabelExpressions() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH (:A|B|C|D)-[:X|Y]->()  RETURN *");
+        assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet()); // All mentioned labels should be present
+        assertEquals(Set.of("X", "Y"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // X & Y : no source nodes
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+    }
+
+    @Test
+    void shouldExcludeDisjointLabelsFromOrPredicates() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH (n)-[:X|Y]->() WHERE (n:A OR n:B OR n:C OR n:D) RETURN *");
+        assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet()); // All mentioned labels should be present
+        assertEquals(Set.of("X", "Y"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // X & Y : no source nodes
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+    }
+
+    @Test
+    void shouldIncludeConjointLabelsFromOrPredicates() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH ()-[:Z {x: 12}]->(n:A&B)-[:X|Y {x: 12}]->() RETURN *");
+        assertEquals(Set.of("A", "B"), m.getNodeLabels().keySet()); // All mentioned labels should be present
+        assertEquals(Set.of("X", "Y", "Z"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // X & Y are alternative relationship types, so neither should inherit endpoint labels.
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getSourceNodeLabels());
+        assertEquals(Set.of("A", "B"), m.getRelationshipTypes().get("Z").getTargetNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("X").getProperties());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("Y").getProperties());
+        assertEquals(Set.of(new Property("x", "Number")), m.getRelationshipTypes().get("Z").getProperties());
+    }
+
+    @Test
+    void shouldExcludeConjointTypes() {
+        var p = new QueryParser();
+        Model m = p.parseQuery(
+                "MATCH (a)-[r:`A`|`B`|`C`]-(o)\n" +
+                "    WHERE elementId(a) IN $ids AND r.weight = 1 AND (o:`X`) AND NOT elementId(o) IN $excludeNodesIds\n" +
+                "    RETURN COUNT(DISTINCT o) AS nodeCount");
+        assertEquals(Set.of("X"), m.getNodeLabels().keySet()); // All mentioned labels should be present
+        assertEquals(Set.of("A", "B", "C"), m.getRelationshipTypes().keySet()); // All mentioned rels should be present
+        // currently Set.of("X") is returned for all relationshipTypes A, B & C
+        assertEquals(Set.of(), m.getRelationshipTypes().get("A").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("B").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("C").getUndirectedNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("A").getProperties());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("B").getProperties());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("C").getProperties());
+    }
+
+
+    @Test
+    void shouldParseAcyclicIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH p = ACYCLIC (:Router {name: 'A'})-[:LINK]-+(:Router {name: 'Z'}) RETURN p");
+        assertEquals(Set.of("Router"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("name", "String")), m.getNodeLabels().get("Router").getProperties());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Router"), m.getRelationshipTypes().get("LINK").getUndirectedNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedPathPatternFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (:Station { name: 'Denmark Hill' })<-[:CALLS_AT]-(d:Stop)
+                      ((:Stop)-[:NEXT]->(:Stop)){1,3}
+                      (a:Stop)-[:CALLS_AT]->(:Station { name: 'Clapham Junction' })
+                RETURN d.departs AS departureTime, a.arrives AS arrivalTime
+                """);
+
+        assertEquals(Set.of("Station", "Stop"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("CALLS_AT", "NEXT"), m.getRelationshipTypes().keySet());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("CALLS_AT").getSourceNodeLabels());
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("CALLS_AT").getTargetNodeLabels());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getSourceNodeLabels());
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedRelationshipFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (d:Station { name: 'Denmark Hill' })<-[:CALLS_AT]-
+                        (n:Stop)-[:NEXT]->{1,10}(m:Stop)-[:CALLS_AT]->
+                        (a:Station { name: 'Clapham Junction' })
+                WHERE m.arrives < time('17:18')
+                RETURN n.departs AS departureTime
+                """);
+
+        assertEquals(Set.of("Station", "Stop"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("CALLS_AT", "NEXT"), m.getRelationshipTypes().keySet());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("CALLS_AT").getSourceNodeLabels());
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("CALLS_AT").getTargetNodeLabels());
+
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getSourceNodeLabels());
+        assertEquals(Set.of("Stop"), m.getRelationshipTypes().get("NEXT").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedPathPatternWithGroupVariablesFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (:Station {name: 'Denmark Hill'})<-[:CALLS_AT]-(origin)
+                      ((l)-[r:NEXT]->(m)){1,3}
+                      ()-[:CALLS_AT]->(:Station {name: 'Clapham Junction'})
+                RETURN origin.departs + [stop in m | stop.departs] AS departureTimes,
+                       reduce(acc = 0.0, next in r | round(acc + next.distance, 2)) AS totalDistance
+                """);
+
+        assertEquals(Set.of("Station"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("CALLS_AT", "NEXT"), m.getRelationshipTypes().keySet());
+
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("CALLS_AT").getTargetNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("NEXT").getSourceNodeLabels());
+        assertEquals(Set.of(), m.getRelationshipTypes().get("NEXT").getTargetNodeLabels());
+    }
+
+    @Test
+    void shouldParseQuantifiedPathPatternWithInlinePredicateFromManual() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("""
+                MATCH (bfr:Station {name: "London Blackfriars"}),
+                      (ndl:Station {name: "North Dulwich"})
+                MATCH p = (bfr)
+                          ((a)-[:LINK]-(b:Station)
+                            WHERE point.distance(a.location, ndl.location) >
+                              point.distance(b.location, ndl.location))+ (ndl)
+                RETURN reduce(acc = 0, r in relationships(p) | round(acc + r.distance, 2))
+                  AS distance
+                """);
+
+        assertEquals(Set.of("Station"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("Station"), m.getRelationshipTypes().get("LINK").getUndirectedNodeLabels());
+    }
+
+    @Test
+    void shouldParseForIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("FOR i in [1,2,3] MATCH (n:Node) WHERE n.id = i RETURN n");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+//        assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
+    }
+    @Test
+    void shouldParseUnwind() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("UNWIND [1,2,3] as i MATCH (n:Node) WHERE n.id = i RETURN n");
+        assertEquals(Set.of("Node"), m.getNodeLabels().keySet());
+//        assertEquals(Set.of( new Property("id", "Number")), m.getNodeLabels().get("Node").getProperties());
+    }
+
+    @Test
+    void shouldParseIsLabeledIn2026_04() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n)-[:LINK]->() WHERE n IS LABELED !A&B AND n IS NOT LABELED C AND n IS NOT D RETURN n");
+        assertEquals(Set.of("A", "B", "C", "D"), m.getNodeLabels().keySet());
+        assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
+        assertEquals(Set.of("B"), m.getRelationshipTypes().get("LINK").getSourceNodeLabels());
+    }
 }

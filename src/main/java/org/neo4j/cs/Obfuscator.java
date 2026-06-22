@@ -103,7 +103,7 @@ public class Obfuscator implements Callable<Integer>  {
             query=matcher.group(2);
         }
         //also with CYPHER prefix
-        Pattern pattern2 = Pattern.compile("(?i)^("+ prefixRegex_CYPHER
+        Pattern pattern2 = Pattern.compile("(?is)^("+ prefixRegex_CYPHER
                 + prefixRegex_PLANNER
                 + prefixRegex_CCPLANNER
                 + prefixRegex_UPDATESTRATEGY
