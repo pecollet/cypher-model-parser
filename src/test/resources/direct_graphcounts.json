@@ -1,0 +1,124 @@
+{
+  relationships: [
+    {
+      count: 13872
+    },
+    {
+      relationshipType: "INCLUDES",
+      count: 10
+    },
+    {
+      count: 10,
+      relationshipType: "INCLUDES",
+      startLabel: "SVC"
+    },
+    {
+      relationshipType: "HAS",
+      count: 144
+    },
+    {
+      count: 144,
+      relationshipType: "HAS",
+      startLabel: "Function"
+    },
+    {
+      count: 144,
+      relationshipType: "HAS",
+      endLabel: "Part"
+    },
+    {
+      relationshipType: "IS_RESPONSIBLE_FOR",
+      count: 21
+    },
+    {
+      count: 21,
+      relationshipType: "IS_RESPONSIBLE_FOR",
+      endLabel: "Function"
+    },
+    {
+      relationshipType: "BELONGS_TO",
+      count: 1331
+    },
+    {
+      count: 1331,
+      relationshipType: "BELONGS_TO",
+      endLabel: "Product"
+    },
+    {
+      count: 1331,
+      relationshipType: "BELONGS_TO",
+      startLabel: "Part"
+    },
+    {
+      relationshipType: "HAS_CPV",
+      count: 11066
+    },
+    {
+      count: 11066,
+      relationshipType: "HAS_CPV",
+      endLabel: "CPV"
+    },
+    {
+      relationshipType: "_Bloom_HAS_SCENE_",
+      count: 0
+    }
+  ],
+  nodes: [
+    {
+      count: 2749
+    },
+    {
+      count: 0,
+      label: "_Bloom_Perspective_"
+    },
+    {
+      count: 0,
+      label: "_Bloom_Scene_"
+    },
+    {
+      count: 2,
+      label: "SVC"
+    },
+    {
+      count: 43,
+      label: "CPV"
+    },
+    {
+      count: 2,
+      label: "Product"
+    },
+    {
+      count: 4,
+      label: "Instance"
+    },
+    {
+      count: 12,
+      label: "Function"
+    },
+    {
+      count: 144,
+      label: "Part"
+    }
+  ],
+  indexes: [
+    {
+      updatesSinceEstimation: 0,
+      indexType: "LOOKUP",
+      totalSize: 0,
+      indexProvider: "token-lookup-1.0",
+      properties: [],
+      labels: [],
+      estimatedUniqueSize: 0
+    },
+    {
+      updatesSinceEstimation: 0,
+      indexType: "LOOKUP",
+      totalSize: 0,
+      indexProvider: "token-lookup-1.0",
+      relationshipTypes: [],
+      properties: [],
+      estimatedUniqueSize: 0
+    }
+  ],
+  constraints: []
+}

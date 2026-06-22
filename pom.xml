@@ -17,6 +17,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <neo4j.version>2026.04.0</neo4j.version>
     </properties>
 
     <dependencies>
@@ -28,12 +29,39 @@
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j-front-end</artifactId>
-            <version>2026.04.0</version>
+            <version>${neo4j.version}</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
             <artifactId>cypher-parser-factory</artifactId>
-            <version>2026.04.0</version>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-planner</artifactId>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-planner</artifactId>
+            <type>test-jar</type>
+            <scope>compile</scope>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-cypher-logical-plan-builder</artifactId>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-graph-counts</artifactId>
+            <version>${neo4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j</groupId>
+            <artifactId>neo4j-ast-test-util</artifactId>
+            <version>${neo4j.version}</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
@@ -59,13 +87,13 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
-            <version>5.14.4</version>
+            <version>6.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
-            <version>5.14.4</version>
+            <version>6.0.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -88,6 +116,7 @@
                 <version>4.9.9</version>
                 <configuration>
                     <compileOrder>ScalaThenJava</compileOrder>
+                    <sendJavaToScalac>false</sendJavaToScalac>
                 </configuration>
                 <executions>
                     <execution>
@@ -154,6 +183,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+<!--                            <minimizeJar>true</minimizeJar>-->
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
                                 <filter>
