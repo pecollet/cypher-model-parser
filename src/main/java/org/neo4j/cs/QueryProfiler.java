@@ -2,8 +2,11 @@ package org.neo4j.cs;
 
 
 import org.neo4j.cypher.graphcounts.GraphCountData;
+import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder;
+import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder.DatabaseFormat.*;
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$;
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
+import org.neo4j.cypher.internal.CypherVersion;
 import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
@@ -75,10 +78,13 @@ public class QueryProfiler implements Callable<Integer> {
             var planner = builder
                     .processGraphCounts(rowData)
 //                    .enablePrintCostComparisons(true)
+//                    .setDatabaseFormat(StatisticsBackedLogicalPlanningConfigurationBuilder.DatabaseFormat.Block)
+//                    .addFunction(signature: UserFunctionSignature)
+//                    .withSetting(...)
                     .build();
 
             // 3. Generate the plan
-            var plan = planner.plan(cypher);
+            var plan  = planner.plan(CypherVersion.Cypher5, cypher);
             var planSteps = plan.toString().split("\n");
             String[] planStepsTrimmed = Arrays.copyOf(planSteps, planSteps.length - 1);
             // 4. Output to stdout
