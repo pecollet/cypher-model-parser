@@ -51,11 +51,20 @@ public class QueryProfilerTest {
     @Test
     void testCommandLineParsingWithCustomValues() {
         QueryProfiler profiler = new QueryProfiler();
-        new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "-v", "25", "-s", "aligned");
+        new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "-d", "25", "-s", "aligned");
         
         assertEquals("counts.json", profiler.countsFile.getName());
         assertEquals(CypherVersion.Cypher25, profiler.cypherVersion);
         assertEquals(getDatabaseFormat("aligned"), profiler.storeFormat);
+    }
+
+    @Test
+    void testCommandLineParsingWithOutputFile() {
+        QueryProfiler profiler = new QueryProfiler();
+        new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "-o", "output.txt");
+
+        assertEquals("counts.json", profiler.countsFile.getName());
+        assertEquals(java.nio.file.Path.of("output.txt"), profiler.outputFile);
     }
 
     @Test
@@ -64,7 +73,7 @@ public class QueryProfilerTest {
         
         // Invalid cypher version
         assertThrows(CommandLine.ParameterException.class, () -> {
-            new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "-v", "99");
+            new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "-d", "99");
         });
 
         // Invalid store format
@@ -82,7 +91,7 @@ public class QueryProfilerTest {
             int exitCode = new CommandLine(new QueryProfiler()).execute(
                 "-c", countsFilePath,
                 "-q", query,
-                "-v", "5",
+                "-d", "5",
                 "-s", "block"
             );
             assertEquals(0, exitCode);
@@ -100,4 +109,31 @@ public class QueryProfilerTest {
         assertTrue(outText.contains("ExpandAll"));
         assertTrue(outText.contains("NodeByLabelScan"));
     }
+
+    @Test
+    void testActualOutputWithOutputFile() throws Exception {
+        String countsFilePath = "src/test/resources/direct_graphcounts.json";
+        String query = "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr";
+        java.nio.file.Path tempOutputFile = java.nio.file.Files.createTempFile("query-profiler-test", ".txt");
+        try {
+            String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+                int exitCode = new CommandLine(new QueryProfiler()).execute(
+                    "-c", countsFilePath,
+                    "-q", query,
+                    "-d", "5",
+                    "-s", "block",
+                    "-o", tempOutputFile.toAbsolutePath().toString()
+                );
+                assertEquals(0, exitCode);
+            });
+
+            // Assert output file was written and contains the same contents as stdout
+            assertTrue(java.nio.file.Files.exists(tempOutputFile));
+            String fileContent = java.nio.file.Files.readString(tempOutputFile);
+            assertEquals(outText, fileContent);
+        } finally {
+            java.nio.file.Files.deleteIfExists(tempOutputFile);
+        }
+    }
+
 }

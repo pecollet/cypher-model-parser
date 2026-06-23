@@ -38,7 +38,7 @@ public class QueryProfiler implements Callable<Integer> {
     File countsFile;
 
     @CommandLine.Option(
-            names = {"-v", "--cypher-version"},
+            names = {"-d", "--dialect"},
             defaultValue = "5",
             converter = CypherVersionConverter.class,
             description = "Cypher version to use for planning. Default is 5."
@@ -52,6 +52,12 @@ public class QueryProfiler implements Callable<Integer> {
             description = "Store format to use. Default is block."
     )
     DatabaseFormat storeFormat;
+
+    @CommandLine.Option(
+            names = {"-o", "--output"},
+            description = "Output file generated, containing the formatted plan. If absent the output is sent to stdout."
+    )
+    Path outputFile;
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputQuery input;
@@ -148,7 +154,11 @@ public class QueryProfiler implements Callable<Integer> {
             var plan  = planner.plan(cypherVersion, cypher);
             // 4. Output formatted table plan to stdout
             var formatter = new TablePlanFormatter();
-            System.out.println(formatter.formatPlan(plan));
+            String outputString = formatter.formatPlan(plan);
+            System.out.println(outputString);
+            if (outputFile != null) {
+                Files.writeString(outputFile, outputString + '\n');
+            }
 
             return 0;
         } catch (Exception e) {

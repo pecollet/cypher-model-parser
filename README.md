@@ -1,6 +1,7 @@
 Tool that parses cypher queries in order to :
 - generate a class diagram of the graph model.
 - obfuscate literal values
+- generate explain plans from Cypher queries using graph count data
 
 # Class diagram
 
@@ -109,4 +110,49 @@ Example:
 > java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.Obfuscator "MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE movie.title CONTAINS 'sdfdg' or r.x = 12 or r.y IN [1290,'gh'] RETURN movie.title, r.role"
 
 MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE movie.title CONTAINS **** or r.x = **** or r.y IN [****,****] RETURN movie.title, r.role
+```
+
+# Query Profiler
+
+**Usage:**
+
+```bash
+java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.QueryProfiler -c counts.json -q "MATCH (n) RETURN n"
+```
+
+Full options:
+
+```
+Usage: QueryProfiler [-hV] -c=JSON_FILE [-d=<cypherVersion>] [-o=<outputFile>]
+                     [-s=<storeFormat>] (-q=CYPHER | -f=FILE)
+Plan and profile a Cypher query using graph count data.
+  -c, --counts=JSON_FILE   Path to the JSON file containing graph counts.
+  -d, --dialect=<cypherVersion>
+                           Cypher version to use for planning. Default is 5.
+  -f, --file=FILE          File containing the Cypher query.
+  -h, --help               Show this help message and exit.
+  -o, --output=<outputFile>
+                           Output file generated, containing the formatted
+                             plan. If absent the output is sent to stdout.
+  -q, --query=CYPHER       The Cypher query string to plan.
+  -s, --store-format=<storeFormat>
+                           Store format to use. Default is block.
+  -V, --version            Print version information and exit.
+```
+
+This will print the generated formatted query execution plan as a table to stdout (and optionally to an output file).
+
+Example output:
+```
++------------------+---------------------------------+
+| Operator         | Details                         |
++------------------+---------------------------------+
+| +ProduceResults  | "p", "pr"                       |
+| |                +---------------------------------+
+| +Filter          | "p:Part"                        |
+| |                +---------------------------------+
+| +ExpandAll       | "(pr)<-[:BELONGS_TO]-(p)"       |
+| |                +---------------------------------+
+| +NodeByLabelScan | "pr", "Product", IndexOrderNone |
++------------------+---------------------------------+
 ```
