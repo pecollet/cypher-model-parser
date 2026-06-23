@@ -112,27 +112,36 @@ public class QueryProfilerTest {
 
     @Test
     void testActualOutputWithOutputFile() throws Exception {
-        String countsFilePath = "src/test/resources/direct_graphcounts.json";
-        String query = "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr";
-        java.nio.file.Path tempOutputFile = java.nio.file.Files.createTempFile("query-profiler-test", ".txt");
-        try {
-            String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
-                int exitCode = new CommandLine(new QueryProfiler()).execute(
-                    "-c", countsFilePath,
-                    "-q", query,
-                    "-d", "5",
-                    "-s", "block",
-                    "-o", tempOutputFile.toAbsolutePath().toString()
-                );
-                assertEquals(0, exitCode);
-            });
+        String[] queries = {
+                "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr", 
+                "MATCH (o:Organisation) RETURN o"
+        };
+        String[] countsFilePaths = {
+                "src/test/resources/direct_graphcounts.json", 
+                "src/test/resources/adminreport_graphcounts.json"};
+        for (int i = 0; i < countsFilePaths.length; i++) {
+            var countsFilePath = countsFilePaths[i];
+            var query = queries[i];
+            java.nio.file.Path tempOutputFile = java.nio.file.Files.createTempFile("query-profiler-test", ".txt");
+            try {
+                String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+                    int exitCode = new CommandLine(new QueryProfiler()).execute(
+                            "-c", countsFilePath,
+                            "-q", query,
+                            "-d", "5",
+                            "-s", "block",
+                            "-o", tempOutputFile.toAbsolutePath().toString()
+                    );
+                    assertEquals(0, exitCode);
+                });
 
-            // Assert output file was written and contains the same contents as stdout
-            assertTrue(java.nio.file.Files.exists(tempOutputFile));
-            String fileContent = java.nio.file.Files.readString(tempOutputFile);
-            assertEquals(outText, fileContent);
-        } finally {
-            java.nio.file.Files.deleteIfExists(tempOutputFile);
+                // Assert output file was written and contains the same contents as stdout
+                assertTrue(java.nio.file.Files.exists(tempOutputFile));
+                String fileContent = java.nio.file.Files.readString(tempOutputFile);
+                assertEquals(outText, fileContent);
+            } finally {
+                java.nio.file.Files.deleteIfExists(tempOutputFile);
+            }
         }
     }
 
