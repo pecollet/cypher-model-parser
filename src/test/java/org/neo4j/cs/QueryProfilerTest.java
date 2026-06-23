@@ -113,11 +113,11 @@ public class QueryProfilerTest {
     @Test
     void testActualOutputWithOutputFile() throws Exception {
         String[] queries = {
-                "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr", 
+                "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr",
                 "MATCH (o:Organisation) RETURN o"
         };
         String[] countsFilePaths = {
-                "src/test/resources/direct_graphcounts.json", 
+                "src/test/resources/direct_graphcounts.json",
                 "src/test/resources/adminreport_graphcounts.json"};
         for (int i = 0; i < countsFilePaths.length; i++) {
             var countsFilePath = countsFilePaths[i];
@@ -143,6 +143,29 @@ public class QueryProfilerTest {
                 java.nio.file.Files.deleteIfExists(tempOutputFile);
             }
         }
+    }
+
+    @Test
+    void testModelVsQueryMismatch() throws Exception {
+        String countsFilePath = "src/test/resources/adminreport_graphcounts.json";
+        String query = "MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                    "-c", countsFilePath,
+                    "-q", query,
+                    "-d", "5",
+                    "-s", "block"
+            );
+            assertEquals(1, exitCode);
+        });
+
+        System.out.println("--- CAPTURED PLAN OUTPUT (Cypher 5, Block) ---");
+        System.out.println(outText);
+        System.out.println("----------------------------------------------");
+
+        // Basic assertions on the table structure and content
+        assertEquals("", outText);
     }
 
 }

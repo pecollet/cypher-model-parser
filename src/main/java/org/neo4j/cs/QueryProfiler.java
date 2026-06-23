@@ -168,7 +168,7 @@ public class QueryProfiler implements Callable<Integer> {
             return 0;
         } catch (Exception e) {
             System.err.println("### [Error] Failed to generate plan: " + e.getMessage());
-            e.printStackTrace();
+//            e.printStackTrace();
             return 1;
         }
     }
