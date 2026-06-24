@@ -117,7 +117,7 @@ MATCH (movie:Movie)-[r:HAS]->(x:Thing) WHERE movie.title CONTAINS **** or r.x = 
 **Usage:**
 
 ```bash
-java -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.QueryProfiler -c counts.json -q "MATCH (n) RETURN n"
+java -XX:+EnableDynamicAgentLoading -Xshare:off -cp cypher-model-parser-x.y.z.jar org.neo4j.cs.QueryProfiler -c counts.json -q "MATCH (n) RETURN n"
 ```
 
 Full options:
