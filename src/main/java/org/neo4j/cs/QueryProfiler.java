@@ -137,8 +137,13 @@ public class QueryProfiler implements Callable<Integer> {
                 var graphCountData = GraphCountsJson.parseAsGraphCountsJson(countsFile);
                 rowData = graphCountData.results().head().data().head().row().data();
             } catch (Exception e) {
-//                System.out.println("Not a HTTP API repsonse");
-                rowData = GraphCountsJson.parseAsGraphCountDataFromCypherMap(countsFile);
+                //try reading the graph count map 
+                try {
+                    rowData = GraphCountsJson.parseAsGraphCountDataFromCypherMap(countsFile);
+                } catch (Exception e2) {
+                    //Rows format (as found in admin report file) 
+                    rowData = GraphCountsJson.parseAsGraphCountRowsFromFile(countsFile);
+                }
             }
 
             var builder = StatisticsBackedLogicalPlanningConfigurationBuilder$.MODULE$.newBuilder();
@@ -163,7 +168,7 @@ public class QueryProfiler implements Callable<Integer> {
             return 0;
         } catch (Exception e) {
             System.err.println("### [Error] Failed to generate plan: " + e.getMessage());
-            e.printStackTrace();
+//            e.printStackTrace();
             return 1;
         }
     }

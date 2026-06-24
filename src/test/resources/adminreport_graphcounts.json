@@ -1,0 +1,68 @@
+[
+  {
+    "section": "GRAPH COUNTS",
+    "data": {
+      "relationships": [
+        {
+          "count": 0
+        }
+      ],
+      "nodes": [
+        {
+          "count": 100000
+        },
+        {
+          "count": 100000,
+          "label": "Organisation"
+        }
+      ],
+      "indexes": [
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "LOOKUP",
+          "totalSize": 0,
+          "indexProvider": "token-lookup-1.0",
+          "properties": [],
+          "labels": [],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "LOOKUP",
+          "totalSize": 0,
+          "indexProvider": "token-lookup-1.0",
+          "relationshipTypes": [],
+          "properties": [],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "RANGE",
+          "totalSize": 100000,
+          "indexProvider": "range-1.0",
+          "properties": [
+            "synthetic_id"
+          ],
+          "labels": [
+            "Organisation"
+          ],
+          "estimatedUniqueSize": 100000
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "RANGE",
+          "totalSize": 100000,
+          "indexProvider": "range-1.0",
+          "properties": [
+            "duns_nbr"
+          ],
+          "labels": [
+            "Organisation"
+          ],
+          "estimatedUniqueSize": 10
+        }
+      ],
+      "constraints": []
+    }
+  }
+]
