@@ -59,6 +59,12 @@ public class QueryProfiler implements Callable<Integer> {
     )
     Path outputFile;
 
+    @CommandLine.Option(
+            names = {"-p", "--plugins-dir"},
+            description = "Directory containing external plugin JARs (like APOC or custom procedures) to scan and register."
+    )
+    File pluginsDir;
+
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputQuery input;
 
@@ -147,11 +153,25 @@ public class QueryProfiler implements Callable<Integer> {
             }
 
             var builder = StatisticsBackedLogicalPlanningConfigurationBuilder$.MODULE$.newBuilder();
+
+            var scanner = new ProcedureAndFunctionScanner();
+            scanner.scanClassPath();
+            if (pluginsDir != null) {
+                scanner.scanPluginsDirectory(pluginsDir);
+            }
+            for (var proc : scanner.getProcedures()) {
+                builder = builder.addProcedure(proc);
+            }
+            for (var func : scanner.getFunctions()) {
+                builder = builder.addFunction(func);
+            }
+
             var planner = builder
                     .processGraphCounts(rowData)
 //                    .enablePrintCostComparisons(true)
                     .setDatabaseFormat(storeFormat)
 //                    .addFunction(signature: UserFunctionSignature)
+                    // .addProcedure()
 //                    .withSetting(...)
                     .build();
 

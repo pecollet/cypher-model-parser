@@ -168,4 +168,21 @@ public class QueryProfilerTest {
         assertEquals("", outText);
     }
 
+    @Test
+    void testBuiltinProc() throws Exception {
+        String countsFilePath = "src/test/resources/adminreport_graphcounts.json";
+        String query = "CALL db.ping()";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                    "-c", countsFilePath,
+                    "-q", query
+            );
+            assertEquals(0, exitCode);
+        });
+        
+        // Basic assertions on the table structure and content
+        assertTrue(outText.contains("ProcedureCall"));
+    }
+
 }
