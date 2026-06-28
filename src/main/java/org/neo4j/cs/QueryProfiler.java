@@ -9,6 +9,7 @@ import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlannin
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
 import org.neo4j.cypher.internal.CypherVersion;
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan;
+import org.neo4j.exceptions.SyntaxException;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
 import picocli.CommandLine;
@@ -183,36 +184,35 @@ public class QueryProfiler implements Callable<Integer> {
                 try {
                     plan = planner.plan(cypherVersion, cypher);
                     break;
-                } catch (Exception e) {
+                } catch (IllegalStateException e) {
                     String message = e.getMessage();
-                    if (message != null) {
-                        // Scenario 1: No cardinality set for label XXX
-                        if (message.contains("No cardinality set for label")) {
-                            Pattern labelPattern = Pattern.compile("No cardinality set for label ([^.]+)\\. Please specify using");
-                            Matcher matcher = labelPattern.matcher(message);
-                            if (matcher.find()) {
-                                String label = matcher.group(1);
-                                builder = builder.setLabelCardinality(label, 0);
-                                planner = builder.build();
-                                retries++;
-                                continue;
-                            }
+                    if (message != null && message.contains("No cardinality set for label")) {
+                        Pattern labelPattern = Pattern.compile("No cardinality set for label ([^.]+)\\. Please specify using");
+                        Matcher matcher = labelPattern.matcher(message);
+                        if (matcher.find()) {
+                            String label = matcher.group(1);
+                            builder = builder.setLabelCardinality(label, 0);
+                            planner = builder.build();
+                            retries++;
+                            continue;
                         }
-                        // Scenario 2: Invalid input 'CYPHER'
-                        if (message.contains("Invalid input 'CYPHER'") || (message.contains("Invalid input") && message.contains("CYPHER"))) {
-                            Pattern cypherPrefixPattern = Pattern.compile("^(?i)CYPHER\\s+(5|25)\\s*");
-                            Matcher matcher = cypherPrefixPattern.matcher(cypher);
-                            if (matcher.find()) {
-                                String versionStr = matcher.group(1);
-                                if ("5".equals(versionStr)) {
-                                    cypherVersion = CypherVersion.Cypher5;
-                                } else if ("25".equals(versionStr)) {
-                                    cypherVersion = CypherVersion.Cypher25;
-                                }
-                                cypher = cypher.substring(matcher.end());
-                                retries++;
-                                continue;
+                    }
+                    throw e;
+                } catch (SyntaxException e) {
+                    String message = e.getMessage();
+                    if (message != null && message.contains("Invalid input 'CYPHER'")) {
+                        Pattern cypherPrefixPattern = Pattern.compile("^(?i)CYPHER\\s+(5|25)\\s*");
+                        Matcher matcher = cypherPrefixPattern.matcher(cypher);
+                        if (matcher.find()) {
+                            String versionStr = matcher.group(1);
+                            if ("5".equals(versionStr)) {
+                                cypherVersion = CypherVersion.Cypher5;
+                            } else if ("25".equals(versionStr)) {
+                                cypherVersion = CypherVersion.Cypher25;
                             }
+                            cypher = cypher.substring(matcher.end());
+                            retries++;
+                            continue;
                         }
                     }
                     throw e;
