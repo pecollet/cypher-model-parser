@@ -8,6 +8,9 @@ import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlannin
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$;
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
 import org.neo4j.cypher.internal.CypherVersion;
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
@@ -166,17 +169,59 @@ public class QueryProfiler implements Callable<Integer> {
                 builder = builder.addFunction(func);
             }
 
-            var planner = builder
+            builder = builder
                     .processGraphCounts(rowData)
-//                    .enablePrintCostComparisons(true)
-                    .setDatabaseFormat(storeFormat)
-//                    .addFunction(signature: UserFunctionSignature)
-                    // .addProcedure()
-//                    .withSetting(...)
-                    .build();
+                    .setDatabaseFormat(storeFormat);
+
+            var planner = builder.build();
 
             // 3. Generate the plan
-            var plan  = planner.plan(cypherVersion, cypher);
+            LogicalPlan plan = null;
+            int maxRetries = 20;
+            int retries = 0;
+            while (retries < maxRetries) {
+                try {
+                    plan = planner.plan(cypherVersion, cypher);
+                    break;
+                } catch (Exception e) {
+                    String message = e.getMessage();
+                    if (message != null) {
+                        // Scenario 1: No cardinality set for label XXX
+                        if (message.contains("No cardinality set for label")) {
+                            Pattern labelPattern = Pattern.compile("No cardinality set for label ([^.]+)\\. Please specify using");
+                            Matcher matcher = labelPattern.matcher(message);
+                            if (matcher.find()) {
+                                String label = matcher.group(1);
+                                builder = builder.setLabelCardinality(label, 0);
+                                planner = builder.build();
+                                retries++;
+                                continue;
+                            }
+                        }
+                        // Scenario 2: Invalid input 'CYPHER'
+                        if (message.contains("Invalid input 'CYPHER'") || (message.contains("Invalid input") && message.contains("CYPHER"))) {
+                            Pattern cypherPrefixPattern = Pattern.compile("^(?i)CYPHER\\s+(5|25)\\s*");
+                            Matcher matcher = cypherPrefixPattern.matcher(cypher);
+                            if (matcher.find()) {
+                                String versionStr = matcher.group(1);
+                                if ("5".equals(versionStr)) {
+                                    cypherVersion = CypherVersion.Cypher5;
+                                } else if ("25".equals(versionStr)) {
+                                    cypherVersion = CypherVersion.Cypher25;
+                                }
+                                cypher = cypher.substring(matcher.end());
+                                retries++;
+                                continue;
+                            }
+                        }
+                    }
+                    throw e;
+                }
+            }
+            if (plan == null) {
+                throw new RuntimeException("Failed to generate plan after " + retries + " retries.");
+            }
+
             // 4. Output formatted table plan to stdout
             var formatter = new TablePlanFormatter();
             String outputString = formatter.formatPlan(plan);
@@ -186,8 +231,12 @@ public class QueryProfiler implements Callable<Integer> {
             }
 
             return 0;
+//        } catch (Exception e) { //No cardinality set for label Resolved_Entity
+//            planner.addLabel()       
+//        } catch (Exception e) { //Invalid input 'CYPHER'
+//            addLabel()
         } catch (Exception e) {
-            System.err.println("### [Error] Failed to generate plan: " + e.getMessage());
+            System.err.println("### [Error] Failed to generate plan: " + e.getMessage() + e);
 //            e.printStackTrace();
             return 1;
         }

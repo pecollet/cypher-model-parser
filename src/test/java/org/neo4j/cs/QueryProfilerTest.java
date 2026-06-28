@@ -157,7 +157,7 @@ public class QueryProfilerTest {
                     "-d", "5",
                     "-s", "block"
             );
-            assertEquals(1, exitCode);
+            assertEquals(0, exitCode);
         });
 
         System.out.println("--- CAPTURED PLAN OUTPUT (Cypher 5, Block) ---");
@@ -165,7 +165,7 @@ public class QueryProfilerTest {
         System.out.println("----------------------------------------------");
 
         // Basic assertions on the table structure and content
-        assertEquals("", outText);
+        assertTrue(outText.contains("ProduceResults"));
     }
 
     @Test
@@ -183,6 +183,42 @@ public class QueryProfilerTest {
         
         // Basic assertions on the table structure and content
         assertTrue(outText.contains("ProcedureCall"));
+    }
+
+    @Test
+    void testRetryOnCypherPrefix() throws Exception {
+        String countsFilePath = "src/test/resources/direct_graphcounts.json";
+        String query = "CYPHER 25 MATCH (p:Part)-[:BELONGS_TO]->(pr:Product) RETURN p, pr";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                    "-c", countsFilePath,
+                    "-q", query,
+                    "-d", "5",
+                    "-s", "block"
+            );
+            assertEquals(0, exitCode);
+        });
+
+        assertTrue(outText.contains("ProduceResults"));
+    }
+
+    @Test
+    void testRetryOnMissingCardinalityExplicit() throws Exception {
+        String countsFilePath = "src/test/resources/direct_graphcounts.json";
+        String query = "MATCH (x:UnknownLabel) RETURN x";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                    "-c", countsFilePath,
+                    "-q", query,
+                    "-d", "5",
+                    "-s", "block"
+            );
+            assertEquals(0, exitCode);
+        });
+
+        assertTrue(outText.contains("ProduceResults"));
     }
 
 }
