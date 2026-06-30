@@ -8,6 +8,10 @@ import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlannin
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder$;
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
 import org.neo4j.cypher.internal.CypherVersion;
+import org.neo4j.cypher.internal.logical.plans.LogicalPlan;
+import org.neo4j.exceptions.SyntaxException;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 import picocli.CommandLine;
 import java.io.File;
 import java.nio.file.Files;
@@ -58,6 +62,12 @@ public class QueryProfiler implements Callable<Integer> {
             description = "Output file generated, containing the formatted plan. If absent the output is sent to stdout."
     )
     Path outputFile;
+
+    @CommandLine.Option(
+            names = {"-p", "--plugins-dir"},
+            description = "Directory containing external plugin JARs (like APOC or custom procedures) to scan and register."
+    )
+    File pluginsDir;
 
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputQuery input;
@@ -147,16 +157,71 @@ public class QueryProfiler implements Callable<Integer> {
             }
 
             var builder = StatisticsBackedLogicalPlanningConfigurationBuilder$.MODULE$.newBuilder();
-            var planner = builder
+
+            var scanner = new ProcedureAndFunctionScanner();
+            scanner.scanClassPath();
+            if (pluginsDir != null) {
+                scanner.scanPluginsDirectory(pluginsDir);
+            }
+            for (var proc : scanner.getProcedures()) {
+                builder = builder.addProcedure(proc);
+            }
+            for (var func : scanner.getFunctions()) {
+                builder = builder.addFunction(func);
+            }
+
+            builder = builder
                     .processGraphCounts(rowData)
-//                    .enablePrintCostComparisons(true)
-                    .setDatabaseFormat(storeFormat)
-//                    .addFunction(signature: UserFunctionSignature)
-//                    .withSetting(...)
-                    .build();
+                    .setDatabaseFormat(storeFormat);
+
+            var planner = builder.build();
 
             // 3. Generate the plan
-            var plan  = planner.plan(cypherVersion, cypher);
+            LogicalPlan plan = null;
+            int maxRetries = 20;
+            int retries = 0;
+            while (retries < maxRetries) {
+                try {
+                    plan = planner.plan(cypherVersion, cypher);
+                    break;
+                } catch (IllegalStateException e) {
+                    String message = e.getMessage();
+                    if (message != null && message.contains("No cardinality set for label")) {
+                        Pattern labelPattern = Pattern.compile("No cardinality set for label ([^.]+)\\. Please specify using");
+                        Matcher matcher = labelPattern.matcher(message);
+                        if (matcher.find()) {
+                            String label = matcher.group(1);
+                            builder = builder.setLabelCardinality(label, 0);
+                            planner = builder.build();
+                            retries++;
+                            continue;
+                        }
+                    }
+                    throw e;
+                } catch (SyntaxException e) {
+                    String message = e.getMessage();
+                    if (message != null && message.contains("Invalid input 'CYPHER'")) {
+                        Pattern cypherPrefixPattern = Pattern.compile("^(?i)CYPHER\\s+(5|25)\\s*");
+                        Matcher matcher = cypherPrefixPattern.matcher(cypher);
+                        if (matcher.find()) {
+                            String versionStr = matcher.group(1);
+                            if ("5".equals(versionStr)) {
+                                cypherVersion = CypherVersion.Cypher5;
+                            } else if ("25".equals(versionStr)) {
+                                cypherVersion = CypherVersion.Cypher25;
+                            }
+                            cypher = cypher.substring(matcher.end());
+                            retries++;
+                            continue;
+                        }
+                    }
+                    throw e;
+                }
+            }
+            if (plan == null) {
+                throw new RuntimeException("Failed to generate plan after " + retries + " retries.");
+            }
+
             // 4. Output formatted table plan to stdout
             var formatter = new TablePlanFormatter();
             String outputString = formatter.formatPlan(plan);
@@ -166,8 +231,12 @@ public class QueryProfiler implements Callable<Integer> {
             }
 
             return 0;
+//        } catch (Exception e) { //No cardinality set for label Resolved_Entity
+//            planner.addLabel()       
+//        } catch (Exception e) { //Invalid input 'CYPHER'
+//            addLabel()
         } catch (Exception e) {
-            System.err.println("### [Error] Failed to generate plan: " + e.getMessage());
+            System.err.println("### [Error] Failed to generate plan: " + e.getMessage() + e);
 //            e.printStackTrace();
             return 1;
         }
