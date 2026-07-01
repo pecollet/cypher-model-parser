@@ -69,6 +69,12 @@ public class QueryProfiler implements Callable<Integer> {
     )
     File pluginsDir;
 
+    @CommandLine.Option(
+            names = {"--obfuscate"},
+            description = "Obfuscate literal values in the query plan details."
+    )
+    boolean obfuscate = false;
+
     @CommandLine.ArgGroup(exclusive = true, multiplicity = "1")
     InputQuery input;
 
@@ -220,6 +226,10 @@ public class QueryProfiler implements Callable<Integer> {
             }
             if (plan == null) {
                 throw new RuntimeException("Failed to generate plan after " + retries + " retries.");
+            }
+
+            if (obfuscate) {
+                plan = org.neo4j.cs.ast.CypherPlanMasker.maskPlan(plan);
             }
 
             // 4. Output formatted table plan to stdout

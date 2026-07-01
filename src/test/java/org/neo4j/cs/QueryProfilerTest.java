@@ -68,6 +68,15 @@ public class QueryProfilerTest {
     }
 
     @Test
+    void testCommandLineParsingWithObfuscate() {
+        QueryProfiler profiler = new QueryProfiler();
+        new CommandLine(profiler).parseArgs("-c", "counts.json", "-q", "MATCH (n) RETURN n", "--obfuscate");
+
+        assertEquals("counts.json", profiler.countsFile.getName());
+        assertTrue(profiler.obfuscate);
+    }
+
+    @Test
     void testCommandLineParsingWithInvalidValues() {
         QueryProfiler profiler = new QueryProfiler();
         
@@ -219,6 +228,59 @@ public class QueryProfilerTest {
         });
 
         assertTrue(outText.contains("ProduceResults"));
+    }
+
+    @Test
+    void testActualOutputWithObfuscation() throws Exception {
+        String countsFilePath = "src/test/resources/direct_graphcounts.json";
+        String query = "MATCH (p:Part {name: 'MyPart'})-[:BELONGS_TO]->(pr:Product) WHERE p.id = 42 RETURN p, pr";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                "-c", countsFilePath,
+                "-q", query,
+                "-d", "5",
+                "-s", "block",
+                "--obfuscate"
+            );
+            assertEquals(0, exitCode);
+        });
+
+        System.out.println("--- CAPTURED PLAN OUTPUT WITH OBFUSCATION ---");
+        System.out.println(outText);
+        System.out.println("----------------------------------------------");
+
+        // Basic assertions on the table structure and content
+        assertTrue(outText.contains("Operator"));
+        assertTrue(outText.contains("Details"));
+
+        // The details column should contain "****" instead of "MyPart" and "42"
+        assertTrue(outText.contains("****"));
+        assertFalse(outText.contains("MyPart"));
+        assertFalse(outText.contains("42"));
+    }
+
+    @Test
+    void testActualOutputWithoutObfuscation() throws Exception {
+        String countsFilePath = "src/test/resources/direct_graphcounts.json";
+        String query = "MATCH (p:Part {name: 'MyPart'})-[:BELONGS_TO]->(pr:Product) WHERE p.id = 42 RETURN p, pr";
+
+        String outText = com.github.stefanbirkner.systemlambda.SystemLambda.tapSystemOutNormalized(() -> {
+            int exitCode = new CommandLine(new QueryProfiler()).execute(
+                "-c", countsFilePath,
+                "-q", query,
+                "-d", "5",
+                "-s", "block"
+            );
+            assertEquals(0, exitCode);
+        });
+
+        System.out.println("--- CAPTURED PLAN OUTPUT WITHOUT OBFUSCATION ---");
+        System.out.println(outText);
+        System.out.println("-------------------------------------------------");
+
+        // The details column should contain "MyPart" and/or "42"
+        assertTrue(outText.contains("MyPart") || outText.contains("42"));
     }
 
 }
