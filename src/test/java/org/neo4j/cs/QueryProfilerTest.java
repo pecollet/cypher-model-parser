@@ -2,6 +2,7 @@ package org.neo4j.cs;
 
 import org.junit.jupiter.api.Test;
 import org.neo4j.cypher.internal.CypherVersion;
+import org.neo4j.cypher.graphcounts.GraphCountData;
 import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlanningConfigurationBuilder.DatabaseFormat;
 import picocli.CommandLine;
 
@@ -281,6 +282,55 @@ public class QueryProfilerTest {
 
         // The details column should contain "MyPart" and/or "42"
         assertTrue(outText.contains("MyPart") || outText.contains("42"));
+    }
+
+    @Test
+    void testFilterUnsupportedConstraints() {
+        // Create a supported constraint (UNIQUE)
+        org.neo4j.cypher.graphcounts.Constraint uniqueConstraint = new org.neo4j.cypher.graphcounts.Constraint(
+                scala.Option.apply("City"),
+                scala.Option.empty(),
+                scala.collection.immutable.Seq$.MODULE$.from(
+                        scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of("name")).asScala()
+                ),
+                scala.Option.empty(),
+                org.neo4j.internal.schema.ConstraintType.UNIQUE,
+                scala.collection.immutable.Seq$.MODULE$.empty(),
+                scala.Option.empty()
+        );
+
+        // Create an unsupported constraint (PROPERTY_TYPE)
+        org.neo4j.cypher.graphcounts.Constraint propertyTypeConstraint = new org.neo4j.cypher.graphcounts.Constraint(
+                scala.Option.apply("City"),
+                scala.Option.empty(),
+                scala.collection.immutable.Seq$.MODULE$.from(
+                        scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of("population")).asScala()
+                ),
+                scala.Option.empty(),
+                org.neo4j.internal.schema.ConstraintType.PROPERTY_TYPE,
+                scala.collection.immutable.Seq$.MODULE$.empty(),
+                scala.Option.empty()
+        );
+
+        scala.collection.immutable.Seq<org.neo4j.cypher.graphcounts.Constraint> constraints =
+                scala.collection.immutable.Seq$.MODULE$.from(
+                        scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of(uniqueConstraint, propertyTypeConstraint)).asScala()
+                );
+
+        GraphCountData data = new GraphCountData(
+                constraints,
+                scala.collection.immutable.Seq$.MODULE$.empty(),
+                scala.collection.immutable.Seq$.MODULE$.empty(),
+                scala.collection.immutable.Seq$.MODULE$.empty()
+        );
+
+        GraphCountData filteredData = QueryProfiler.filterUnsupportedConstraints(data);
+
+        java.util.List<org.neo4j.cypher.graphcounts.Constraint> filteredList =
+                scala.jdk.CollectionConverters.SeqHasAsJava(filteredData.constraints()).asJava();
+
+        assertEquals(1, filteredList.size());
+        assertEquals(org.neo4j.internal.schema.ConstraintType.UNIQUE, filteredList.get(0).type());
     }
 
 }

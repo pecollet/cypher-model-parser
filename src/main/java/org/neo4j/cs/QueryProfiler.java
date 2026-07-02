@@ -9,6 +9,7 @@ import org.neo4j.cypher.internal.compiler.planner.StatisticsBackedLogicalPlannin
 import org.neo4j.cypher.graphcounts.GraphCountsJson;
 import org.neo4j.cypher.internal.CypherVersion;
 import org.neo4j.cypher.internal.logical.plans.LogicalPlan;
+import org.neo4j.internal.schema.ConstraintType;
 import org.neo4j.exceptions.SyntaxException;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
@@ -176,6 +177,8 @@ public class QueryProfiler implements Callable<Integer> {
                 builder = builder.addFunction(func);
             }
 
+            rowData = filterUnsupportedConstraints(rowData);
+
             builder = builder
                     .processGraphCounts(rowData)
                     .setDatabaseFormat(storeFormat);
@@ -250,6 +253,34 @@ public class QueryProfiler implements Callable<Integer> {
 //            e.printStackTrace();
             return 1;
         }
+    }
+
+    static GraphCountData filterUnsupportedConstraints(GraphCountData data) {
+        java.util.List<org.neo4j.cypher.graphcounts.Constraint> constraints =
+                scala.jdk.CollectionConverters.SeqHasAsJava(data.constraints()).asJava();
+
+        java.util.List<org.neo4j.cypher.graphcounts.Constraint> filtered = constraints.stream()
+                .filter(c -> {
+                    ConstraintType t = c.type();
+                    return t == ConstraintType.UNIQUE ||
+                           t == ConstraintType.EXISTS ||
+                           t == ConstraintType.UNIQUE_EXISTS ||
+                           t == ConstraintType.NODE_LABEL_EXISTENCE ||
+                           t == ConstraintType.RELATIONSHIP_ENDPOINT_LABEL;
+                })
+                .collect(Collectors.toList());
+
+        scala.collection.immutable.Seq<org.neo4j.cypher.graphcounts.Constraint> scalaConstraints =
+                scala.collection.immutable.Seq$.MODULE$.from(
+                        scala.jdk.CollectionConverters.IterableHasAsScala(filtered).asScala()
+                );
+
+        return data.copy(
+                scalaConstraints,
+                data.indexes(),
+                data.nodes(),
+                data.relationships()
+        );
     }
 
     public static void main(String... args) {
