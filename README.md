@@ -131,9 +131,11 @@ Plan and profile a Cypher query using graph count data.
                            Cypher version to use for planning. Default is 5.
   -f, --file=FILE          File containing the Cypher query.
   -h, --help               Show this help message and exit.
+  --obfuscate              Masj any litterals in the plan's "details" column.
   -o, --output=<outputFile>
                            Output file generated, containing the formatted
                              plan. If absent the output is sent to stdout.
+  -p, --plugins-dir        Directory containing procedure plugin jar files.
   -q, --query=CYPHER       The Cypher query string to plan.
   -s, --store-format=<storeFormat>
                            Store format to use. Default is block.
