@@ -37,6 +37,9 @@ public class Parser implements Callable<Integer> {
     @Option(names = { "-j", "--json" }, description = "Export JSON model.")
     private boolean exportJson;
 
+    @Option(names = { "-gc", "--graph-counts" }, paramLabel = "GRAPH-COUNTS", description = "The JSON file containing graph counts, indexes, and constraints")
+    private java.io.File graphCountsFile;
+
     @Option(names = { "-d", "--dialect" }, paramLabel = "dialect",  completionCandidates = Obfuscator.Dialects.class, defaultValue = "25", description = "The cypher dialect, one of : [${COMPLETION-CANDIDATES}]. Defaults to 25.")
     private CypherVersion dialect;
 
@@ -83,6 +86,22 @@ public class Parser implements Callable<Integer> {
         QueryParser parser = new QueryParser();
         Model fullModel = parser.parseQueries(queries, dialect);
         //fullModel.filterIsolatedRelationships();
+
+        if (graphCountsFile != null) {
+            if (!graphCountsFile.isFile() || !graphCountsFile.canRead()) {
+                System.out.println("Graph counts file not found or not readable: " + graphCountsFile);
+                return 4;
+            }
+            try {
+                Model graphCountsModel = GraphCountsParser.parse(graphCountsFile);
+//                System.out.println("Graph counts model: " + graphCountsModel);
+                fullModel.add(graphCountsModel);
+            } catch (Exception e) {
+                System.out.println("Failed to parse graph counts JSON: " + e.toString());
+                e.printStackTrace();
+                return 5;
+            }
+        }
 
         if (exportJson) {
             saveJson(fullModel, outputDir + "/model.json");

@@ -36,12 +36,15 @@ public class Model {
                             .filter(p -> !"UNKNOWN".equalsIgnoreCase(p.getType()))
                             .collect(Collectors.toList());
 
+                    boolean isIndexed = props.stream().anyMatch(Property::isIndexed);
+                    String key = props.get(0).getKey();
+
                     if (knownTypes.isEmpty()) {
                         // Everything was UNKNOWN, just return one
-                        return props.get(0);
+                        return new Property(key, props.get(0).getType(), isIndexed);
                     } else if (knownTypes.size() == 1) {
                         // Only one typed property exists, it wins
-                        return knownTypes.get(0);
+                        return new Property(key, knownTypes.get(0).getType(), isIndexed);
                     } else {
                         // 2. Multiple different known types exist
                         // Check if they are actually all the same type
@@ -51,11 +54,10 @@ public class Model {
                                 .count();
 
                         if (distinctTypeCount == 1) {
-                            return knownTypes.get(0);
+                            return new Property(key, knownTypes.get(0).getType(), isIndexed);
                         } else {
                             // Resolve ambiguity by forcing UNKNOWN
-                            Property ambiguous = new Property(props.get(0).getKey(), "UNKNOWN");
-                            return ambiguous;
+                            return new Property(key, "UNKNOWN", isIndexed);
                         }
                     }
                 })
@@ -74,7 +76,10 @@ public class Model {
                         Map.Entry::getValue,
                         (value1, value2) -> {
                             Set<Property> mergedProps = mergeProperties(value1.getProperties(), value2.getProperties());
-                            return new NodeLabel(value1.getLabel(), mergedProps);
+                            NodeLabel mergedNode = new NodeLabel(value1.getLabel(), mergedProps);
+                            String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
+                            mergedNode.setProvenance(mergedProv);
+                            return mergedNode;
                         }
                     )
                 );
@@ -107,6 +112,9 @@ public class Model {
                                     allUndirNodeLabels.addAll(value1.getUndirectedNodeLabels());
                                     allUndirNodeLabels.addAll(value2.getUndirectedNodeLabels());
                                     mergedRelationshipType.setUndirectedNodeLabels(allUndirNodeLabels);
+
+                                    String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
+                                    mergedRelationshipType.setProvenance(mergedProv);
                                     return mergedRelationshipType;
                                 }
                         )
