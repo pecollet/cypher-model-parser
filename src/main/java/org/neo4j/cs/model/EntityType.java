@@ -12,6 +12,10 @@ import java.util.stream.Collectors;
 public class EntityType {
     @Setter
     @Getter
+    private String provenance = "query logs";
+
+    @Setter
+    @Getter
     Set<Property> properties = new HashSet<>();
 
     public EntityType addProperty(String key) {
