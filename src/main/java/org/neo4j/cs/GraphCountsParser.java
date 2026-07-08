@@ -102,6 +102,8 @@ public class GraphCountsParser {
             }
             if (props.isEmpty()) continue;
 
+            String indexType = index.has("indexType") && !index.get("indexType").isNull() ? index.get("indexType").asText() : "RANGE";
+
             if (index.has("labels") && index.get("labels").isArray() && index.get("labels").size() > 0) {
                 for (JsonNode labelNode : index.get("labels")) {
                     String labelName = labelNode.asText();
@@ -109,7 +111,7 @@ public class GraphCountsParser {
                     if (nl != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
-                            p.setIndexed(true);
+                            p.setIndexType(indexType);
                         }
                     }
                 }
@@ -120,7 +122,7 @@ public class GraphCountsParser {
                     if (rt != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
-                            p.setIndexed(true);
+                            p.setIndexType(indexType);
                         }
                     }
                 }

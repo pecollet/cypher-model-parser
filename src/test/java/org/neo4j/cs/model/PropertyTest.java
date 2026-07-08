@@ -22,4 +22,16 @@ public class PropertyTest {
         Property p = new Property("names", "List");
         assertEquals(p.asPlantUml(), "<&list> names");
     }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithRangeIndex() {
+        Property p = new Property("name", "String", "RANGE");
+        assertEquals("<&double-quote-serif-left> name <&info>[<&resize-width>]", p.asPlantUml());
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithTextIndex() {
+        Property p = new Property("name", "String", "TEXT");
+        assertEquals("<&double-quote-serif-left> name <&info>[<&text>]", p.asPlantUml());
+    }
 }

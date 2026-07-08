@@ -23,7 +23,7 @@ public class Property implements Comparable{
     @EqualsAndHashCode.Include
     @Getter
     @Setter
-    boolean indexed;
+    String indexType;
 
 
     private static final Map<String, String> typeIconMap = new HashMap<>();
@@ -49,7 +49,7 @@ public class Property implements Comparable{
         
         //bootstrap (https://icons.getbootstrap.com/) hand-index <$bi-hand-index>
         //!include <bootstrap/bootstrap>
-        indexesIconMap.put("RANGE", "<&info>[<&resize-width>]"); //resize-width resize-height resize-both
+        indexesIconMap.put("RANGE", "<&info>[<&resize-both>]"); //resize-width resize-height resize-both
         indexesIconMap.put("TEXT", "<&info>[<&text>]"); //text
         indexesIconMap.put("POINT", "<&info>[<&map-marker>]"); //map-marker map
         indexesIconMap.put("FULLTEXT", "<&info>[<&book>]"); //book
@@ -61,18 +61,44 @@ public class Property implements Comparable{
         this.type = type;
     }
 
-    public String asPlantUml() {
-        String typeIconName= typeIconMap.computeIfAbsent(this.type, type -> "question-mark");
-        if ("question-mark".equals(typeIconName)) {
-            String plantUml = "ATTR(" + this.key + ")";
-            if (this.indexed) {
-                plantUml = "{static} " + plantUml;
-            }
-            return plantUml;
+    @Deprecated
+    public Property(String key, String type, boolean indexed) {
+        this(key, type);
+        if (indexed) {
+            this.indexType = "RANGE";
         }
-        String plantUml = "<&"+typeIconName+"> " + this.key;
+    }
 
-        if (this.indexed) plantUml = "{static} " + plantUml;
+    public boolean isIndexed() {
+        return this.indexType != null;
+    }
+
+    @Deprecated
+    public void setIndexed(boolean indexed) {
+        if (indexed) {
+            if (this.indexType == null) {
+                this.indexType = "RANGE";
+            }
+        } else {
+            this.indexType = null;
+        }
+    }
+
+    public String asPlantUml() {
+        String typeIconName = typeIconMap.computeIfAbsent(this.type, type -> "question-mark");
+        String plantUml;
+        if ("question-mark".equals(typeIconName)) {
+            plantUml = "ATTR(" + this.key + ")";
+        } else {
+            plantUml = "<&" + typeIconName + "> " + this.key;
+        }
+
+        if (this.indexType != null) {
+            String suffix = indexesIconMap.get(this.indexType);
+            if (suffix != null) {
+                plantUml = plantUml + " " + suffix;
+            }
+        }
         return plantUml;
     }
 

@@ -36,15 +36,20 @@ public class Model {
                             .filter(p -> !"UNKNOWN".equalsIgnoreCase(p.getType()))
                             .collect(Collectors.toList());
 
-                    boolean isIndexed = props.stream().anyMatch(Property::isIndexed);
+                    String indexType = props.stream()
+                            .map(Property::getIndexType)
+                            .filter(Objects::nonNull)
+                            .findFirst()
+                            .orElse(null);
                     String key = props.get(0).getKey();
 
+                    Property mergedProp;
                     if (knownTypes.isEmpty()) {
                         // Everything was UNKNOWN, just return one
-                        return new Property(key, props.get(0).getType(), isIndexed);
+                        mergedProp = new Property(key, props.get(0).getType());
                     } else if (knownTypes.size() == 1) {
                         // Only one typed property exists, it wins
-                        return new Property(key, knownTypes.get(0).getType(), isIndexed);
+                        mergedProp = new Property(key, knownTypes.get(0).getType());
                     } else {
                         // 2. Multiple different known types exist
                         // Check if they are actually all the same type
@@ -54,12 +59,14 @@ public class Model {
                                 .count();
 
                         if (distinctTypeCount == 1) {
-                            return new Property(key, knownTypes.get(0).getType(), isIndexed);
+                            mergedProp = new Property(key, knownTypes.get(0).getType());
                         } else {
                             // Resolve ambiguity by forcing UNKNOWN
-                            return new Property(key, "UNKNOWN", isIndexed);
+                            mergedProp = new Property(key, "UNKNOWN");
                         }
                     }
+                    mergedProp.setIndexType(indexType);
+                    return mergedProp;
                 })
                 .collect(Collectors.toSet());
     }

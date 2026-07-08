@@ -41,8 +41,8 @@ public class EntityType {
                             if (p.getType() != null) {
                                 newProp.setType(p.getType());
                             }
-                            if (p.isIndexed()) {
-                                newProp.setIndexed(p.isIndexed());
+                            if (p.getIndexType() != null) {
+                                newProp.setIndexType(p.getIndexType());
                             }
                         }
                     }

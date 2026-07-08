@@ -91,6 +91,7 @@ public class ModelTest {
                     .orElse(null);
             assertNotNull(idProp);
             assertTrue(idProp.isIndexed());
+            assertEquals("RANGE", idProp.getIndexType());
             assertEquals("UNKNOWN", idProp.getType());
 
             // Check constraint property type
@@ -130,7 +131,7 @@ public class ModelTest {
         Model m2 = new Model();
         NodeLabel nl2 = new NodeLabel("Person");
         nl2.setProvenance("graphcounts");
-        Property p = new Property("name", "String", true);
+        Property p = new Property("name", "String", "RANGE");
         nl2.getProperties().add(p);
         nl2.addProperty("age", "Number");
         m2.getNodeLabels().put("Person", nl2);
@@ -150,6 +151,7 @@ public class ModelTest {
                 .orElse(null);
         assertNotNull(mergedName);
         assertTrue(mergedName.isIndexed());
+        assertEquals("RANGE", mergedName.getIndexType());
         assertEquals("String", mergedName.getType());
     }
 
@@ -172,5 +174,6 @@ public class ModelTest {
         Property synthId = org.getProperties().stream().filter(p -> "synthetic_id".equals(p.getKey())).findFirst().orElse(null);
         assertNotNull(synthId);
         assertTrue(synthId.isIndexed(), "synthetic_id should be indexed on Organisation");
+        assertEquals("RANGE", synthId.getIndexType(), "synthetic_id should have RANGE index on Organisation");
     }
 }
