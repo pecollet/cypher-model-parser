@@ -27,8 +27,9 @@ public class Property implements Comparable{
 
 
     private static final Map<String, String> typeIconMap = new HashMap<>();
-
-    //PlantUML OpenIconic icon names
+    private static final Map<String, String> constraintsIconMap = new HashMap<>();
+    private static final Map<String, String> indexesIconMap = new HashMap<>();
+    //PlantUML OpenIconic icon names (https://plantuml.com/openiconic)
     static {
         typeIconMap.put("String", "double-quote-serif-left");
         typeIconMap.put("Number", "bar-chart");
@@ -40,6 +41,19 @@ public class Property implements Comparable{
         typeIconMap.put("Duration", "timer");
         typeIconMap.put("Point", "location");
         typeIconMap.put("Vector", "grid-four-up");
+        //"key" "sort-ascending" "pin" "shield"
+        constraintsIconMap.put("Key", "<&key>");
+        constraintsIconMap.put("Uniqueness", "<&lock-locked>[≠]"); 
+        constraintsIconMap.put("Existence", "<&lock-locked>[∃]"); 
+        constraintsIconMap.put("PropertyType", "<&lock-locked>[∈]"); 
+        
+        //bootstrap (https://icons.getbootstrap.com/) hand-index <$bi-hand-index>
+        //!include <bootstrap/bootstrap>
+        indexesIconMap.put("RANGE", "<&info>[<&resize-width>]"); //resize-width resize-height resize-both
+        indexesIconMap.put("TEXT", "<&info>[<&text>]"); //text
+        indexesIconMap.put("POINT", "<&info>[<&map-marker>]"); //map-marker map
+        indexesIconMap.put("FULLTEXT", "<&info>[<&book>]"); //book
+        indexesIconMap.put("VECTOR", "<&info>[<&grid-four-up>]"); //grid-four-up
     }
 
     public Property(String key, String type) {
