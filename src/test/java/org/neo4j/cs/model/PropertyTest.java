@@ -26,7 +26,7 @@ public class PropertyTest {
     @Test
     void shouldExportCorrectPlantUmlWithRangeIndex() {
         Property p = new Property("name", "String", "RANGE");
-        assertEquals("<&double-quote-serif-left> name <&info>[<&resize-width>]", p.asPlantUml());
+        assertEquals("<&double-quote-serif-left> name <&info>[<&resize-both>]", p.asPlantUml());
     }
 
     @Test
