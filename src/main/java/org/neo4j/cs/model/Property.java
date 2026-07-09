@@ -2,10 +2,11 @@ package org.neo4j.cs.model;
 
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-@AllArgsConstructor
 @RequiredArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @ToString
@@ -23,12 +24,12 @@ public class Property implements Comparable{
     @EqualsAndHashCode.Include
     @Getter
     @Setter
-    String indexType;
+    List<String> indexTypes = new ArrayList<>();
 
     @EqualsAndHashCode.Include
     @Getter
     @Setter
-    String constraintType;
+    List<String> constraintTypes = new ArrayList<>();
 
 
     private static final Map<String, String> typeIconMap = new HashMap<>();
@@ -68,31 +69,25 @@ public class Property implements Comparable{
 
     public Property(String key, String type, String indexType) {
         this(key, type);
-        this.indexType = indexType;
+        this.addIndexType(indexType);
     }
 
-    @Deprecated
-    public Property(String key, String type, boolean indexed) {
-        this(key, type);
-        if (indexed) {
-            this.indexType = "RANGE";
+    public void addIndexType(String indexType) {
+        if (indexType != null && !this.indexTypes.contains(indexType)) {
+            this.indexTypes.add(indexType);
+        }
+    }
+
+    public void addConstraintType(String constraintType) {
+        if (constraintType != null && !this.constraintTypes.contains(constraintType)) {
+            this.constraintTypes.add(constraintType);
         }
     }
 
     public boolean isIndexed() {
-        return this.indexType != null;
+        return !this.indexTypes.isEmpty();
     }
-
-    @Deprecated
-    public void setIndexed(boolean indexed) {
-        if (indexed) {
-            if (this.indexType == null) {
-                this.indexType = "RANGE";
-            }
-        } else {
-            this.indexType = null;
-        }
-    }
+    
 
     public String asPlantUml() {
         String typeIconName = typeIconMap.computeIfAbsent(this.type, type -> "question-mark");
@@ -103,14 +98,14 @@ public class Property implements Comparable{
             plantUml = "<&" + typeIconName + "> " + this.key;
         }
 
-        if (this.indexType != null) {
-            String suffix = indexesIconMap.get(this.indexType);
+        for (String idxType : this.indexTypes) {
+            String suffix = indexesIconMap.get(idxType);
             if (suffix != null) {
                 plantUml = plantUml + " " + suffix;
             }
         }
-        if (this.constraintType != null) {
-            String suffix = constraintsIconMap.get(this.constraintType);
+        for (String cType : this.constraintTypes) {
+            String suffix = constraintsIconMap.get(cType);
             if (suffix != null) {
                 plantUml = plantUml + " " + suffix;
             }

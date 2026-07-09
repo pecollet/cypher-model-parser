@@ -91,7 +91,7 @@ public class ModelTest {
                     .orElse(null);
             assertNotNull(idProp);
             assertTrue(idProp.isIndexed());
-            assertEquals("RANGE", idProp.getIndexType());
+            assertEquals("RANGE", idProp.getIndexTypes().getFirst());
             assertEquals("UNKNOWN", idProp.getType());
 
             // Check constraint property type
@@ -101,7 +101,7 @@ public class ModelTest {
                     .orElse(null);
             assertNotNull(ageProp);
             assertEquals("Number", ageProp.getType());
-            assertEquals("PropertyType", ageProp.getConstraintType());
+            assertTrue(ageProp.getConstraintTypes().contains("PropertyType"));
 
             // Check relationships
             assertTrue(model.getRelationshipTypes().containsKey("LIVES_IN"));
@@ -152,7 +152,7 @@ public class ModelTest {
                 .orElse(null);
         assertNotNull(mergedName);
         assertTrue(mergedName.isIndexed());
-        assertEquals("RANGE", mergedName.getIndexType());
+        assertEquals("RANGE", mergedName.getIndexTypes().getFirst());
         assertEquals("String", mergedName.getType());
     }
 
@@ -175,16 +175,55 @@ public class ModelTest {
         Property synthId = org.getProperties().stream().filter(p -> "synthetic_id".equals(p.getKey())).findFirst().orElse(null);
         assertNotNull(synthId);
         assertTrue(synthId.isIndexed(), "synthetic_id should be indexed on Organisation");
-        assertEquals("RANGE", synthId.getIndexType(), "synthetic_id should have RANGE index on Organisation");
+        assertEquals("RANGE", synthId.getIndexTypes().getFirst(), "synthetic_id should have RANGE index on Organisation");
 
         NodeLabel person = model.getNodeLabels().get("Person");
         Property nameProp = person.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
         assertNotNull(nameProp);
-        assertEquals("PropertyType", nameProp.getConstraintType());
+        assertTrue(nameProp.getConstraintTypes().contains("PropertyType"));
+        assertTrue(nameProp.getConstraintTypes().contains("Existence"));
 
         NodeLabel city = model.getNodeLabels().get("City");
         Property cityNameProp = city.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
         assertNotNull(cityNameProp);
-        assertEquals("Existence", cityNameProp.getConstraintType());
+        assertTrue(cityNameProp.getConstraintTypes().contains("PropertyType"));
+        assertTrue(cityNameProp.getConstraintTypes().contains("Existence"));
+    }
+
+    @Test
+    void testModelMergingWithMultipleIndexesAndConstraints() {
+        Model m1 = new Model();
+        NodeLabel nl1 = new NodeLabel("User");
+        Property p1 = new Property("username", "String");
+        p1.getIndexTypes().add("RANGE");
+        p1.getConstraintTypes().add("Existence");
+        nl1.getProperties().add(p1);
+        m1.getNodeLabels().put("User", nl1);
+
+        Model m2 = new Model();
+        NodeLabel nl2 = new NodeLabel("User");
+        Property p2 = new Property("username", "String");
+        p2.getIndexTypes().add("TEXT");
+        p2.getConstraintTypes().add("Uniqueness");
+        nl2.getProperties().add(p2);
+        m2.getNodeLabels().put("User", nl2);
+
+        m1.add(m2);
+
+        NodeLabel merged = m1.getNodeLabels().get("User");
+        assertNotNull(merged);
+        Property mergedProp = merged.getProperties().stream()
+                .filter(p -> "username".equals(p.getKey()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(mergedProp);
+
+        assertTrue(mergedProp.getIndexTypes().contains("RANGE"));
+        assertTrue(mergedProp.getIndexTypes().contains("TEXT"));
+        assertEquals(2, mergedProp.getIndexTypes().size());
+
+        assertTrue(mergedProp.getConstraintTypes().contains("Existence"));
+        assertTrue(mergedProp.getConstraintTypes().contains("Uniqueness"));
+        assertEquals(2, mergedProp.getConstraintTypes().size());
     }
 }

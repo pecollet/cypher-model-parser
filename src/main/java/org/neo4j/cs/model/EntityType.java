@@ -41,11 +41,19 @@ public class EntityType {
                             if (p.getType() != null) {
                                 newProp.setType(p.getType());
                             }
-                            if (p.getIndexType() != null) {
-                                newProp.setIndexType(p.getIndexType());
+                            if (p.getIndexTypes() != null) {
+                                for (String idx : p.getIndexTypes()) {
+                                    if (!newProp.getIndexTypes().contains(idx)) {
+                                        newProp.getIndexTypes().add(idx);
+                                    }
+                                }
                             }
-                            if (p.getConstraintType() != null) {
-                                newProp.setConstraintType(p.getConstraintType());
+                            if (p.getConstraintTypes() != null) {
+                                for (String c : p.getConstraintTypes()) {
+                                    if (!newProp.getConstraintTypes().contains(c)) {
+                                        newProp.getConstraintTypes().add(c);
+                                    }
+                                }
                             }
                         }
                     }

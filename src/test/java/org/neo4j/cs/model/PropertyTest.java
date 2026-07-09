@@ -38,35 +38,45 @@ public class PropertyTest {
     @Test
     void shouldExportCorrectPlantUmlWithExistenceConstraint() {
         Property p = new Property("name", "String");
-        p.setConstraintType("Existence");
+        p.addConstraintType("Existence");
         assertEquals("<&double-quote-serif-left> name <&lock-locked>[∃]", p.asPlantUml());
     }
 
     @Test
     void shouldExportCorrectPlantUmlWithUniquenessConstraint() {
         Property p = new Property("name", "String");
-        p.setConstraintType("Uniqueness");
+        p.addConstraintType("Uniqueness");
         assertEquals("<&double-quote-serif-left> name <&lock-locked>[≠]", p.asPlantUml());
     }
 
     @Test
     void shouldExportCorrectPlantUmlWithPropertyTypeConstraint() {
         Property p = new Property("name", "String");
-        p.setConstraintType("PropertyType");
+        p.addConstraintType("PropertyType");
         assertEquals("<&double-quote-serif-left> name <&lock-locked>[∈]", p.asPlantUml());
     }
 
     @Test
     void shouldExportCorrectPlantUmlWithKeyConstraint() {
         Property p = new Property("name", "String");
-        p.setConstraintType("Key");
+        p.addConstraintType("Key");
         assertEquals("<&double-quote-serif-left> name <&key>", p.asPlantUml());
     }
 
     @Test
     void shouldExportCorrectPlantUmlWithIndexAndConstraint() {
         Property p = new Property("name", "String", "RANGE");
-        p.setConstraintType("Existence");
+        p.addConstraintType("Existence");
         assertEquals("<&double-quote-serif-left> name <&info>[<&resize-both>] <&lock-locked>[∃]", p.asPlantUml());
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithMultipleIndexesAndConstraints() {
+        Property p = new Property("name", "String");
+        p.getIndexTypes().add("RANGE");
+        p.getIndexTypes().add("TEXT");
+        p.getConstraintTypes().add("Existence");
+        p.getConstraintTypes().add("Uniqueness");
+        assertEquals("<&double-quote-serif-left> name <&info>[<&resize-both>] <&info>[<&text>] <&lock-locked>[∃] <&lock-locked>[≠]", p.asPlantUml());
     }
 }

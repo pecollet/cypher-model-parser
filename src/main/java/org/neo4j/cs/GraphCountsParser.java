@@ -111,7 +111,7 @@ public class GraphCountsParser {
                     if (nl != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
-                            p.setIndexType(indexType);
+                            p.addIndexType(indexType);
                         }
                     }
                 }
@@ -122,7 +122,7 @@ public class GraphCountsParser {
                     if (rt != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
-                            p.setIndexType(indexType);
+                            p.addIndexType(indexType);
                         }
                     }
                 }
@@ -161,7 +161,7 @@ public class GraphCountsParser {
                             String rawType = i < propTypes.size() ? propTypes.get(i) : "UNKNOWN";
                             Property p = getOrCreateProperty(nl, propName);
                             p.setType(mapPropertyType(rawType));
-                            p.setConstraintType("PropertyType");
+                            p.addConstraintType("PropertyType");
                         }
                     }
                 } else if (relType != null) {
@@ -172,7 +172,7 @@ public class GraphCountsParser {
                             String rawType = i < propTypes.size() ? propTypes.get(i) : "UNKNOWN";
                             Property p = getOrCreateProperty(rt, propName);
                             p.setType(mapPropertyType(rawType));
-                            p.setConstraintType("PropertyType");
+                            p.addConstraintType("PropertyType");
                         }
                     }
                 }
@@ -182,7 +182,7 @@ public class GraphCountsParser {
                     if (nl != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
-                            p.setConstraintType("Existence");
+                            p.addConstraintType("Existence");
                         }
                     }
                 } else if (relType != null) {
@@ -190,7 +190,7 @@ public class GraphCountsParser {
                     if (rt != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
-                            p.setConstraintType("Existence");
+                            p.addConstraintType("Existence");
                         }
                     }
                 }
@@ -200,7 +200,7 @@ public class GraphCountsParser {
                     if (nl != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
-                            p.setConstraintType("Uniqueness");
+                            p.addConstraintType("Uniqueness");
                         }
                     }
                 } else if (relType != null) {
@@ -208,17 +208,17 @@ public class GraphCountsParser {
                     if (rt != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
-                            p.setConstraintType("Uniqueness");
+                            p.addConstraintType("Uniqueness");
                         }
                     }
                 }
-            } else if ("Key constraint".equals(type) || "Node key constraint".equals(type)) {
+            } else if ("Node Key".equals(type)) {
                 if (labelName != null) {
                     NodeLabel nl = getOrCreateNodeLabel(model, labelName);
                     if (nl != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
-                            p.setConstraintType("Key");
+                            p.addConstraintType("Key");
                         }
                     }
                 } else if (relType != null) {
@@ -226,7 +226,7 @@ public class GraphCountsParser {
                     if (rt != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
-                            p.setConstraintType("Key");
+                            p.addConstraintType("Key");
                         }
                     }
                 }

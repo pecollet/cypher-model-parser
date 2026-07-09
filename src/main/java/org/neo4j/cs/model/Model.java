@@ -36,16 +36,16 @@ public class Model {
                             .filter(p -> !"UNKNOWN".equalsIgnoreCase(p.getType()))
                             .collect(Collectors.toList());
 
-                    String indexType = props.stream()
-                            .map(Property::getIndexType)
+                    List<String> indexTypes = props.stream()
+                            .flatMap(p -> p.getIndexTypes().stream())
                             .filter(Objects::nonNull)
-                            .findFirst()
-                            .orElse(null);
-                    String constraintType = props.stream()
-                            .map(Property::getConstraintType)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    List<String> constraintTypes = props.stream()
+                            .flatMap(p -> p.getConstraintTypes().stream())
                             .filter(Objects::nonNull)
-                            .findFirst()
-                            .orElse(null);
+                            .distinct()
+                            .collect(Collectors.toList());
                     String key = props.get(0).getKey();
 
                     Property mergedProp;
@@ -70,8 +70,8 @@ public class Model {
                             mergedProp = new Property(key, "UNKNOWN");
                         }
                     }
-                    mergedProp.setIndexType(indexType);
-                    mergedProp.setConstraintType(constraintType);
+                    mergedProp.setIndexTypes(indexTypes);
+                    mergedProp.setConstraintTypes(constraintTypes);
                     return mergedProp;
                 })
                 .collect(Collectors.toSet());
