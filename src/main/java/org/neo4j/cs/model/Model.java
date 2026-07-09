@@ -126,6 +126,16 @@ public class Model {
                                     allUndirNodeLabels.addAll(value2.getUndirectedNodeLabels());
                                     mergedRelationshipType.setUndirectedNodeLabels(allUndirNodeLabels);
 
+                                    Set<String> allConstrainedSrcNodeLabels = new HashSet<>();
+                                    allConstrainedSrcNodeLabels.addAll(value1.getConstrainedSourceNodeLabels());
+                                    allConstrainedSrcNodeLabels.addAll(value2.getConstrainedSourceNodeLabels());
+                                    mergedRelationshipType.setConstrainedSourceNodeLabels(allConstrainedSrcNodeLabels);
+
+                                    Set<String> allConstrainedTgtNodeLabels = new HashSet<>();
+                                    allConstrainedTgtNodeLabels.addAll(value1.getConstrainedTargetNodeLabels());
+                                    allConstrainedTgtNodeLabels.addAll(value2.getConstrainedTargetNodeLabels());
+                                    mergedRelationshipType.setConstrainedTargetNodeLabels(allConstrainedTgtNodeLabels);
+
                                     String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
                                     mergedRelationshipType.setProvenance(mergedProv);
                                     return mergedRelationshipType;

@@ -115,6 +115,8 @@ public class ModelTest {
             RelationshipType livesIn = model.getRelationshipTypes().get("LIVES_IN");
             assertEquals(Set.of("Resident"), livesIn.getSourceNodeLabels());
             assertEquals(Set.of("City"), livesIn.getTargetNodeLabels());
+            assertEquals(Set.of("Resident"), livesIn.getConstrainedSourceNodeLabels());
+            assertEquals(Set.of("City"), livesIn.getConstrainedTargetNodeLabels());
 
         } finally {
             Files.deleteIfExists(tempFile);

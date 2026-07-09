@@ -244,8 +244,10 @@ public class GraphCountsParser {
                         getOrCreateNodeLabel(model, enforcedLabel);
                         if ("START".equalsIgnoreCase(endpointType)) {
                             rt.getSourceNodeLabels().add(enforcedLabel);
+                            rt.getConstrainedSourceNodeLabels().add(enforcedLabel);
                         } else if ("END".equalsIgnoreCase(endpointType)) {
                             rt.getTargetNodeLabels().add(enforcedLabel);
+                            rt.getConstrainedTargetNodeLabels().add(enforcedLabel);
                         }
                     }
                 }
