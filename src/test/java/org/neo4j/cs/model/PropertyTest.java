@@ -34,4 +34,39 @@ public class PropertyTest {
         Property p = new Property("name", "String", "TEXT");
         assertEquals("<&double-quote-serif-left> name <&info>[<&text>]", p.asPlantUml());
     }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithExistenceConstraint() {
+        Property p = new Property("name", "String");
+        p.setConstraintType("Existence");
+        assertEquals("<&double-quote-serif-left> name <&lock-locked>[∃]", p.asPlantUml());
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithUniquenessConstraint() {
+        Property p = new Property("name", "String");
+        p.setConstraintType("Uniqueness");
+        assertEquals("<&double-quote-serif-left> name <&lock-locked>[≠]", p.asPlantUml());
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithPropertyTypeConstraint() {
+        Property p = new Property("name", "String");
+        p.setConstraintType("PropertyType");
+        assertEquals("<&double-quote-serif-left> name <&lock-locked>[∈]", p.asPlantUml());
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithKeyConstraint() {
+        Property p = new Property("name", "String");
+        p.setConstraintType("Key");
+        assertEquals("<&double-quote-serif-left> name <&key>", p.asPlantUml());
+    }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithIndexAndConstraint() {
+        Property p = new Property("name", "String", "RANGE");
+        p.setConstraintType("Existence");
+        assertEquals("<&double-quote-serif-left> name <&info>[<&resize-both>] <&lock-locked>[∃]", p.asPlantUml());
+    }
 }

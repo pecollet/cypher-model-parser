@@ -101,6 +101,7 @@ public class ModelTest {
                     .orElse(null);
             assertNotNull(ageProp);
             assertEquals("Number", ageProp.getType());
+            assertEquals("PropertyType", ageProp.getConstraintType());
 
             // Check relationships
             assertTrue(model.getRelationshipTypes().containsKey("LIVES_IN"));
@@ -175,5 +176,15 @@ public class ModelTest {
         assertNotNull(synthId);
         assertTrue(synthId.isIndexed(), "synthetic_id should be indexed on Organisation");
         assertEquals("RANGE", synthId.getIndexType(), "synthetic_id should have RANGE index on Organisation");
+
+        NodeLabel person = model.getNodeLabels().get("Person");
+        Property nameProp = person.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
+        assertNotNull(nameProp);
+        assertEquals("PropertyType", nameProp.getConstraintType());
+
+        NodeLabel city = model.getNodeLabels().get("City");
+        Property cityNameProp = city.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
+        assertNotNull(cityNameProp);
+        assertEquals("Existence", cityNameProp.getConstraintType());
     }
 }

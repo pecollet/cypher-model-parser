@@ -44,6 +44,9 @@ public class EntityType {
                             if (p.getIndexType() != null) {
                                 newProp.setIndexType(p.getIndexType());
                             }
+                            if (p.getConstraintType() != null) {
+                                newProp.setConstraintType(p.getConstraintType());
+                            }
                         }
                     }
                     return newProp;

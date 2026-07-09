@@ -41,6 +41,11 @@ public class Model {
                             .filter(Objects::nonNull)
                             .findFirst()
                             .orElse(null);
+                    String constraintType = props.stream()
+                            .map(Property::getConstraintType)
+                            .filter(Objects::nonNull)
+                            .findFirst()
+                            .orElse(null);
                     String key = props.get(0).getKey();
 
                     Property mergedProp;
@@ -66,6 +71,7 @@ public class Model {
                         }
                     }
                     mergedProp.setIndexType(indexType);
+                    mergedProp.setConstraintType(constraintType);
                     return mergedProp;
                 })
                 .collect(Collectors.toSet());

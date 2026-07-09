@@ -25,6 +25,11 @@ public class Property implements Comparable{
     @Setter
     String indexType;
 
+    @EqualsAndHashCode.Include
+    @Getter
+    @Setter
+    String constraintType;
+
 
     private static final Map<String, String> typeIconMap = new HashMap<>();
     private static final Map<String, String> constraintsIconMap = new HashMap<>();
@@ -61,6 +66,11 @@ public class Property implements Comparable{
         this.type = type;
     }
 
+    public Property(String key, String type, String indexType) {
+        this(key, type);
+        this.indexType = indexType;
+    }
+
     @Deprecated
     public Property(String key, String type, boolean indexed) {
         this(key, type);
@@ -95,6 +105,12 @@ public class Property implements Comparable{
 
         if (this.indexType != null) {
             String suffix = indexesIconMap.get(this.indexType);
+            if (suffix != null) {
+                plantUml = plantUml + " " + suffix;
+            }
+        }
+        if (this.constraintType != null) {
+            String suffix = constraintsIconMap.get(this.constraintType);
             if (suffix != null) {
                 plantUml = plantUml + " " + suffix;
             }
