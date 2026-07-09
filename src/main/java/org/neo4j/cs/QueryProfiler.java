@@ -178,6 +178,7 @@ public class QueryProfiler implements Callable<Integer> {
             }
 
             rowData = filterUnsupportedConstraints(rowData);
+            rowData = filterUnsupportedIndexes(rowData);
 
             builder = builder
                     .processGraphCounts(rowData)
@@ -278,6 +279,30 @@ public class QueryProfiler implements Callable<Integer> {
         return data.copy(
                 scalaConstraints,
                 data.indexes(),
+                data.nodes(),
+                data.relationships()
+        );
+    }
+
+    static GraphCountData filterUnsupportedIndexes(GraphCountData data) {
+        java.util.List<org.neo4j.cypher.graphcounts.Index> indexes =
+                scala.jdk.CollectionConverters.SeqHasAsJava(data.indexes()).asJava();
+
+        java.util.List<org.neo4j.cypher.graphcounts.Index> filtered = indexes.stream()
+                .filter(idx -> {
+                    org.neo4j.internal.schema.IndexType t = idx.indexType();
+                    return t != org.neo4j.internal.schema.IndexType.VECTOR;
+                })
+                .collect(Collectors.toList());
+
+        scala.collection.immutable.Seq<org.neo4j.cypher.graphcounts.Index> scalaIndexes =
+                scala.collection.immutable.Seq$.MODULE$.from(
+                        scala.jdk.CollectionConverters.IterableHasAsScala(filtered).asScala()
+                );
+
+        return data.copy(
+                data.constraints(),
+                scalaIndexes,
                 data.nodes(),
                 data.relationships()
         );
