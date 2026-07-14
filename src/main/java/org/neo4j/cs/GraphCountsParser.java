@@ -231,9 +231,15 @@ public class GraphCountsParser {
                     }
                 }
             } else if ("Node label existence constraint".equals(type)) {
-                getOrCreateNodeLabel(model, labelName);
+                NodeLabel nl = getOrCreateNodeLabel(model, labelName);
                 if (constraint.has("enforcedLabel") && !constraint.get("enforcedLabel").isNull()) {
-                    getOrCreateNodeLabel(model, constraint.get("enforcedLabel").asText());
+                    String enforcedLabel = constraint.get("enforcedLabel").asText();
+                    getOrCreateNodeLabel(model, enforcedLabel);
+                    if (nl != null) {
+                        if (!nl.getImpliedLabels().contains(enforcedLabel)) {
+                            nl.getImpliedLabels().add(enforcedLabel);
+                        }
+                    }
                 }
             } else if ("Relationship endpoint label constraint".equals(type)) {
                 if (relType != null && constraint.has("enforcedLabel") && !constraint.get("enforcedLabel").isNull() && constraint.has("endpointType") && !constraint.get("endpointType").isNull()) {

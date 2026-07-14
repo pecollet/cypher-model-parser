@@ -92,6 +92,22 @@ public class Model {
                             NodeLabel mergedNode = new NodeLabel(value1.getLabel(), mergedProps);
                             String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
                             mergedNode.setProvenance(mergedProv);
+                            List<String> mergedImplied = new ArrayList<>();
+                            if (value1.getImpliedLabels() != null) {
+                                for (String impl : value1.getImpliedLabels()) {
+                                    if (!mergedImplied.contains(impl)) {
+                                        mergedImplied.add(impl);
+                                    }
+                                }
+                            }
+                            if (value2.getImpliedLabels() != null) {
+                                for (String impl : value2.getImpliedLabels()) {
+                                    if (!mergedImplied.contains(impl)) {
+                                        mergedImplied.add(impl);
+                                    }
+                                }
+                            }
+                            mergedNode.setImpliedLabels(mergedImplied);
                             return mergedNode;
                         }
                     )

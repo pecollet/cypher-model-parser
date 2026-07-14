@@ -5,6 +5,8 @@ import org.neo4j.cs.GraphCountsParser;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -227,5 +229,67 @@ public class ModelTest {
         assertTrue(mergedProp.getConstraintTypes().contains("Existence"));
         assertTrue(mergedProp.getConstraintTypes().contains("Uniqueness"));
         assertEquals(2, mergedProp.getConstraintTypes().size());
+    }
+
+    @Test
+    void testParseNodeLabelExistenceConstraint() throws Exception {
+        String json = "[\n" +
+                "  {\n" +
+                "    \"section\": \"GRAPH COUNTS\",\n" +
+                "    \"data\": {\n" +
+                "      \"constraints\": [\n" +
+                "        {\n" +
+                "          \"type\": \"Node label existence constraint\",\n" +
+                "          \"label\": \"Pet\",\n" +
+                "          \"enforcedLabel\": \"Resident\"\n" +
+                "        }\n" +
+                "      ]\n" +
+                "    }\n" +
+                "  }\n" +
+                "]";
+
+        Path tempFile = Files.createTempFile("graphcounts-constraint-test", ".json");
+        Files.writeString(tempFile, json);
+
+        try {
+            Model model = GraphCountsParser.parse(tempFile.toFile());
+
+            assertTrue(model.getNodeLabels().containsKey("Pet"));
+            assertTrue(model.getNodeLabels().containsKey("Resident"));
+
+            NodeLabel pet = model.getNodeLabels().get("Pet");
+            assertNotNull(pet);
+            assertEquals(1, pet.getImpliedLabels().size());
+            assertEquals("Resident", pet.getImpliedLabels().get(0));
+
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Test
+    void testModelMergingImpliedLabels() {
+        Model m1 = new Model();
+        NodeLabel nl1 = new NodeLabel("Pet");
+        nl1.getImpliedLabels().add("Resident");
+        nl1.getImpliedLabels().add("Animal");
+        m1.getNodeLabels().put("Pet", nl1);
+
+        Model m2 = new Model();
+        NodeLabel nl2 = new NodeLabel("Pet");
+        nl2.getImpliedLabels().add("Animal");
+        nl2.getImpliedLabels().add("Mammal");
+        m2.getNodeLabels().put("Pet", nl2);
+
+        m1.add(m2);
+
+        NodeLabel merged = m1.getNodeLabels().get("Pet");
+        assertNotNull(merged);
+        List<String> implied = merged.getImpliedLabels();
+        assertNotNull(implied);
+        assertEquals(3, implied.size());
+        assertTrue(implied.contains("Resident"));
+        assertTrue(implied.contains("Animal"));
+        assertTrue(implied.contains("Mammal"));
     }
 }
