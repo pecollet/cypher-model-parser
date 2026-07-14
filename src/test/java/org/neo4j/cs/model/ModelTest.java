@@ -5,6 +5,8 @@ import org.neo4j.cs.GraphCountsParser;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -91,6 +93,7 @@ public class ModelTest {
                     .orElse(null);
             assertNotNull(idProp);
             assertTrue(idProp.isIndexed());
+            assertEquals("RANGE", idProp.getIndexTypes().getFirst());
             assertEquals("UNKNOWN", idProp.getType());
 
             // Check constraint property type
@@ -100,6 +103,7 @@ public class ModelTest {
                     .orElse(null);
             assertNotNull(ageProp);
             assertEquals("Number", ageProp.getType());
+            assertTrue(ageProp.getConstraintTypes().contains("PropertyType"));
 
             // Check relationships
             assertTrue(model.getRelationshipTypes().containsKey("LIVES_IN"));
@@ -113,6 +117,8 @@ public class ModelTest {
             RelationshipType livesIn = model.getRelationshipTypes().get("LIVES_IN");
             assertEquals(Set.of("Resident"), livesIn.getSourceNodeLabels());
             assertEquals(Set.of("City"), livesIn.getTargetNodeLabels());
+            assertEquals(Set.of("Resident"), livesIn.getConstrainedSourceNodeLabels());
+            assertEquals(Set.of("City"), livesIn.getConstrainedTargetNodeLabels());
 
         } finally {
             Files.deleteIfExists(tempFile);
@@ -130,7 +136,7 @@ public class ModelTest {
         Model m2 = new Model();
         NodeLabel nl2 = new NodeLabel("Person");
         nl2.setProvenance("graphcounts");
-        Property p = new Property("name", "String", true);
+        Property p = new Property("name", "String", "RANGE");
         nl2.getProperties().add(p);
         nl2.addProperty("age", "Number");
         m2.getNodeLabels().put("Person", nl2);
@@ -150,6 +156,7 @@ public class ModelTest {
                 .orElse(null);
         assertNotNull(mergedName);
         assertTrue(mergedName.isIndexed());
+        assertEquals("RANGE", mergedName.getIndexTypes().getFirst());
         assertEquals("String", mergedName.getType());
     }
 
@@ -172,5 +179,117 @@ public class ModelTest {
         Property synthId = org.getProperties().stream().filter(p -> "synthetic_id".equals(p.getKey())).findFirst().orElse(null);
         assertNotNull(synthId);
         assertTrue(synthId.isIndexed(), "synthetic_id should be indexed on Organisation");
+        assertEquals("RANGE", synthId.getIndexTypes().getFirst(), "synthetic_id should have RANGE index on Organisation");
+
+        NodeLabel person = model.getNodeLabels().get("Person");
+        Property nameProp = person.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
+        assertNotNull(nameProp);
+        assertTrue(nameProp.getConstraintTypes().contains("PropertyType"));
+        assertTrue(nameProp.getConstraintTypes().contains("Existence"));
+
+        NodeLabel city = model.getNodeLabels().get("City");
+        Property cityNameProp = city.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
+        assertNotNull(cityNameProp);
+        assertTrue(cityNameProp.getConstraintTypes().contains("PropertyType"));
+        assertTrue(cityNameProp.getConstraintTypes().contains("Existence"));
+    }
+
+    @Test
+    void testModelMergingWithMultipleIndexesAndConstraints() {
+        Model m1 = new Model();
+        NodeLabel nl1 = new NodeLabel("User");
+        Property p1 = new Property("username", "String");
+        p1.getIndexTypes().add("RANGE");
+        p1.getConstraintTypes().add("Existence");
+        nl1.getProperties().add(p1);
+        m1.getNodeLabels().put("User", nl1);
+
+        Model m2 = new Model();
+        NodeLabel nl2 = new NodeLabel("User");
+        Property p2 = new Property("username", "String");
+        p2.getIndexTypes().add("TEXT");
+        p2.getConstraintTypes().add("Uniqueness");
+        nl2.getProperties().add(p2);
+        m2.getNodeLabels().put("User", nl2);
+
+        m1.add(m2);
+
+        NodeLabel merged = m1.getNodeLabels().get("User");
+        assertNotNull(merged);
+        Property mergedProp = merged.getProperties().stream()
+                .filter(p -> "username".equals(p.getKey()))
+                .findFirst()
+                .orElse(null);
+        assertNotNull(mergedProp);
+
+        assertTrue(mergedProp.getIndexTypes().contains("RANGE"));
+        assertTrue(mergedProp.getIndexTypes().contains("TEXT"));
+        assertEquals(2, mergedProp.getIndexTypes().size());
+
+        assertTrue(mergedProp.getConstraintTypes().contains("Existence"));
+        assertTrue(mergedProp.getConstraintTypes().contains("Uniqueness"));
+        assertEquals(2, mergedProp.getConstraintTypes().size());
+    }
+
+    @Test
+    void testParseNodeLabelExistenceConstraint() throws Exception {
+        String json = "[\n" +
+                "  {\n" +
+                "    \"section\": \"GRAPH COUNTS\",\n" +
+                "    \"data\": {\n" +
+                "      \"constraints\": [\n" +
+                "        {\n" +
+                "          \"type\": \"Node label existence constraint\",\n" +
+                "          \"label\": \"Pet\",\n" +
+                "          \"enforcedLabel\": \"Resident\"\n" +
+                "        }\n" +
+                "      ]\n" +
+                "    }\n" +
+                "  }\n" +
+                "]";
+
+        Path tempFile = Files.createTempFile("graphcounts-constraint-test", ".json");
+        Files.writeString(tempFile, json);
+
+        try {
+            Model model = GraphCountsParser.parse(tempFile.toFile());
+
+            assertTrue(model.getNodeLabels().containsKey("Pet"));
+            assertTrue(model.getNodeLabels().containsKey("Resident"));
+
+            NodeLabel pet = model.getNodeLabels().get("Pet");
+            assertNotNull(pet);
+            assertEquals(1, pet.getImpliedLabels().size());
+            assertEquals("Resident", pet.getImpliedLabels().get(0));
+
+        } finally {
+            Files.deleteIfExists(tempFile);
+        }
+    }
+
+    @Test
+    void testModelMergingImpliedLabels() {
+        Model m1 = new Model();
+        NodeLabel nl1 = new NodeLabel("Pet");
+        nl1.getImpliedLabels().add("Resident");
+        nl1.getImpliedLabels().add("Animal");
+        m1.getNodeLabels().put("Pet", nl1);
+
+        Model m2 = new Model();
+        NodeLabel nl2 = new NodeLabel("Pet");
+        nl2.getImpliedLabels().add("Animal");
+        nl2.getImpliedLabels().add("Mammal");
+        m2.getNodeLabels().put("Pet", nl2);
+
+        m1.add(m2);
+
+        NodeLabel merged = m1.getNodeLabels().get("Pet");
+        assertNotNull(merged);
+        List<String> implied = merged.getImpliedLabels();
+        assertNotNull(implied);
+        assertEquals(3, implied.size());
+        assertTrue(implied.contains("Resident"));
+        assertTrue(implied.contains("Animal"));
+        assertTrue(implied.contains("Mammal"));
     }
 }

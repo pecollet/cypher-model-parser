@@ -333,4 +333,64 @@ public class QueryProfilerTest {
         assertEquals(org.neo4j.internal.schema.ConstraintType.UNIQUE, filteredList.get(0).type());
     }
 
+    @Test
+    void testFilterUnsupportedIndexes() {
+        scala.collection.immutable.Seq<java.lang.String> labelsSeq = scala.collection.immutable.Seq$.MODULE$.from(
+                scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of("City")).asScala()
+        );
+        scala.Option<scala.collection.immutable.Seq<java.lang.String>> labelsOpt = scala.Option.apply(labelsSeq);
+
+        scala.collection.immutable.Seq<java.lang.String> propertiesSeq1 = scala.collection.immutable.Seq$.MODULE$.from(
+                scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of("name")).asScala()
+        );
+
+        scala.collection.immutable.Seq<java.lang.String> propertiesSeq2 = scala.collection.immutable.Seq$.MODULE$.from(
+                scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of("embedding")).asScala()
+        );
+
+        // Create a supported index (RANGE)
+        org.neo4j.cypher.graphcounts.Index rangeIndex = new org.neo4j.cypher.graphcounts.Index(
+                labelsOpt,
+                scala.Option.empty(),
+                org.neo4j.internal.schema.IndexType.RANGE,
+                propertiesSeq1,
+                0L,
+                0L,
+                0L,
+                null
+        );
+
+        // Create an unsupported index (VECTOR)
+        org.neo4j.cypher.graphcounts.Index vectorIndex = new org.neo4j.cypher.graphcounts.Index(
+                labelsOpt,
+                scala.Option.empty(),
+                org.neo4j.internal.schema.IndexType.VECTOR,
+                propertiesSeq2,
+                0L,
+                0L,
+                0L,
+                null
+        );
+
+        scala.collection.immutable.Seq<org.neo4j.cypher.graphcounts.Index> indexes =
+                scala.collection.immutable.Seq$.MODULE$.from(
+                        scala.jdk.CollectionConverters.IterableHasAsScala(java.util.List.of(rangeIndex, vectorIndex)).asScala()
+                );
+
+        GraphCountData data = new GraphCountData(
+                scala.collection.immutable.Seq$.MODULE$.empty(),
+                indexes,
+                scala.collection.immutable.Seq$.MODULE$.empty(),
+                scala.collection.immutable.Seq$.MODULE$.empty()
+        );
+
+        GraphCountData filteredData = QueryProfiler.filterUnsupportedIndexes(data);
+
+        java.util.List<org.neo4j.cypher.graphcounts.Index> filteredList =
+                scala.jdk.CollectionConverters.SeqHasAsJava(filteredData.indexes()).asJava();
+
+        assertEquals(1, filteredList.size());
+        assertEquals(org.neo4j.internal.schema.IndexType.RANGE, filteredList.get(0).indexType());
+    }
+
 }

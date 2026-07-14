@@ -102,6 +102,8 @@ public class GraphCountsParser {
             }
             if (props.isEmpty()) continue;
 
+            String indexType = index.has("indexType") && !index.get("indexType").isNull() ? index.get("indexType").asText() : "RANGE";
+
             if (index.has("labels") && index.get("labels").isArray() && index.get("labels").size() > 0) {
                 for (JsonNode labelNode : index.get("labels")) {
                     String labelName = labelNode.asText();
@@ -109,7 +111,7 @@ public class GraphCountsParser {
                     if (nl != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
-                            p.setIndexed(true);
+                            p.addIndexType(indexType);
                         }
                     }
                 }
@@ -120,7 +122,7 @@ public class GraphCountsParser {
                     if (rt != null) {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
-                            p.setIndexed(true);
+                            p.addIndexType(indexType);
                         }
                     }
                 }
@@ -159,6 +161,7 @@ public class GraphCountsParser {
                             String rawType = i < propTypes.size() ? propTypes.get(i) : "UNKNOWN";
                             Property p = getOrCreateProperty(nl, propName);
                             p.setType(mapPropertyType(rawType));
+                            p.addConstraintType("PropertyType");
                         }
                     }
                 } else if (relType != null) {
@@ -169,6 +172,7 @@ public class GraphCountsParser {
                             String rawType = i < propTypes.size() ? propTypes.get(i) : "UNKNOWN";
                             Property p = getOrCreateProperty(rt, propName);
                             p.setType(mapPropertyType(rawType));
+                            p.addConstraintType("PropertyType");
                         }
                     }
                 }
@@ -177,21 +181,65 @@ public class GraphCountsParser {
                     NodeLabel nl = getOrCreateNodeLabel(model, labelName);
                     if (nl != null) {
                         for (String propName : props) {
-                            getOrCreateProperty(nl, propName);
+                            Property p = getOrCreateProperty(nl, propName);
+                            p.addConstraintType("Existence");
                         }
                     }
                 } else if (relType != null) {
                     RelationshipType rt = getOrCreateRelationshipType(model, relType);
                     if (rt != null) {
                         for (String propName : props) {
-                            getOrCreateProperty(rt, propName);
+                            Property p = getOrCreateProperty(rt, propName);
+                            p.addConstraintType("Existence");
+                        }
+                    }
+                }
+            } else if ("Uniqueness constraint".equals(type) || "Unique constraint".equals(type)) {
+                if (labelName != null) {
+                    NodeLabel nl = getOrCreateNodeLabel(model, labelName);
+                    if (nl != null) {
+                        for (String propName : props) {
+                            Property p = getOrCreateProperty(nl, propName);
+                            p.addConstraintType("Uniqueness");
+                        }
+                    }
+                } else if (relType != null) {
+                    RelationshipType rt = getOrCreateRelationshipType(model, relType);
+                    if (rt != null) {
+                        for (String propName : props) {
+                            Property p = getOrCreateProperty(rt, propName);
+                            p.addConstraintType("Uniqueness");
+                        }
+                    }
+                }
+            } else if ("Node Key".equals(type)) {
+                if (labelName != null) {
+                    NodeLabel nl = getOrCreateNodeLabel(model, labelName);
+                    if (nl != null) {
+                        for (String propName : props) {
+                            Property p = getOrCreateProperty(nl, propName);
+                            p.addConstraintType("Key");
+                        }
+                    }
+                } else if (relType != null) {
+                    RelationshipType rt = getOrCreateRelationshipType(model, relType);
+                    if (rt != null) {
+                        for (String propName : props) {
+                            Property p = getOrCreateProperty(rt, propName);
+                            p.addConstraintType("Key");
                         }
                     }
                 }
             } else if ("Node label existence constraint".equals(type)) {
-                getOrCreateNodeLabel(model, labelName);
+                NodeLabel nl = getOrCreateNodeLabel(model, labelName);
                 if (constraint.has("enforcedLabel") && !constraint.get("enforcedLabel").isNull()) {
-                    getOrCreateNodeLabel(model, constraint.get("enforcedLabel").asText());
+                    String enforcedLabel = constraint.get("enforcedLabel").asText();
+                    getOrCreateNodeLabel(model, enforcedLabel);
+                    if (nl != null) {
+                        if (!nl.getImpliedLabels().contains(enforcedLabel)) {
+                            nl.getImpliedLabels().add(enforcedLabel);
+                        }
+                    }
                 }
             } else if ("Relationship endpoint label constraint".equals(type)) {
                 if (relType != null && constraint.has("enforcedLabel") && !constraint.get("enforcedLabel").isNull() && constraint.has("endpointType") && !constraint.get("endpointType").isNull()) {
@@ -202,8 +250,10 @@ public class GraphCountsParser {
                         getOrCreateNodeLabel(model, enforcedLabel);
                         if ("START".equalsIgnoreCase(endpointType)) {
                             rt.getSourceNodeLabels().add(enforcedLabel);
+                            rt.getConstrainedSourceNodeLabels().add(enforcedLabel);
                         } else if ("END".equalsIgnoreCase(endpointType)) {
                             rt.getTargetNodeLabels().add(enforcedLabel);
+                            rt.getConstrainedTargetNodeLabels().add(enforcedLabel);
                         }
                     }
                 }

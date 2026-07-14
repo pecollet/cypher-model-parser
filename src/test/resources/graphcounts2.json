@@ -1,0 +1,388 @@
+[
+  {
+    "section": "GRAPH COUNTS",
+    "data": {
+      "relationships": [
+        {
+          "count": 129
+        },
+        {
+          "relationshipType": "LIVES_IN",
+          "count": 0
+        },
+        {
+          "relationshipType": "LOVES",
+          "count": 1
+        },
+        {
+          "relationshipType": "LOVES",
+          "count": 1,
+          "startLabel": "Person"
+        },
+        {
+          "relationshipType": "LOVES",
+          "count": 1,
+          "startLabel": "Resident"
+        },
+        {
+          "relationshipType": "LOVES",
+          "count": 1,
+          "endLabel": "City"
+        },
+        {
+          "relationshipType": "HAS_ELEMENT",
+          "count": 31
+        },
+        {
+          "relationshipType": "HAS_ELEMENT",
+          "count": 13,
+          "startLabel": "Document"
+        },
+        {
+          "relationshipType": "HAS_ELEMENT",
+          "count": 2,
+          "endLabel": "Image"
+        },
+        {
+          "relationshipType": "HAS_ELEMENT",
+          "count": 29,
+          "endLabel": "Table"
+        },
+        {
+          "relationshipType": "HAS_ELEMENT",
+          "count": 18,
+          "startLabel": "Chunk"
+        },
+        {
+          "relationshipType": "PART_OF",
+          "count": 49
+        },
+        {
+          "relationshipType": "PART_OF",
+          "count": 49,
+          "endLabel": "Document"
+        },
+        {
+          "relationshipType": "PART_OF",
+          "count": 49,
+          "startLabel": "Chunk"
+        },
+        {
+          "relationshipType": "NEXT_CHUNK",
+          "count": 48
+        },
+        {
+          "relationshipType": "NEXT_CHUNK",
+          "count": 48,
+          "startLabel": "Chunk"
+        },
+        {
+          "relationshipType": "NEXT_CHUNK",
+          "count": 48,
+          "endLabel": "Chunk"
+        }
+      ],
+      "nodes": [
+        {
+          "count": 100072
+        },
+        {
+          "count": 100000,
+          "label": "Organisation"
+        },
+        {
+          "count": 5,
+          "label": "Person"
+        },
+        {
+          "count": 0,
+          "label": "Pet"
+        },
+        {
+          "count": 0,
+          "label": "Animal"
+        },
+        {
+          "count": 5,
+          "label": "Resident"
+        },
+        {
+          "count": 4,
+          "label": "City"
+        },
+        {
+          "count": 1,
+          "label": "Document"
+        },
+        {
+          "count": 1,
+          "label": "Image"
+        },
+        {
+          "count": 12,
+          "label": "Table"
+        },
+        {
+          "count": 49,
+          "label": "Chunk"
+        },
+        {
+          "count": 0,
+          "label": "Employee"
+        },
+        {
+          "count": 0,
+          "label": "Manager"
+        },
+        {
+          "count": 0,
+          "label": "Movie"
+        },
+        {
+          "count": 0,
+          "label": "Director"
+        }
+      ],
+      "indexes": [
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "LOOKUP",
+          "totalSize": 0,
+          "indexProvider": "token-lookup-1.0",
+          "properties": [],
+          "labels": [],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "LOOKUP",
+          "totalSize": 0,
+          "indexProvider": "token-lookup-1.0",
+          "relationshipTypes": [],
+          "properties": [],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "RANGE",
+          "totalSize": 100000,
+          "indexProvider": "range-1.0",
+          "properties": [
+            "synthetic_id"
+          ],
+          "labels": [
+            "Organisation"
+          ],
+          "estimatedUniqueSize": 100000
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "RANGE",
+          "totalSize": 100000,
+          "indexProvider": "range-1.0",
+          "properties": [
+            "duns_nbr"
+          ],
+          "labels": [
+            "Organisation"
+          ],
+          "estimatedUniqueSize": 10
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "TEXT",
+          "totalSize": 0,
+          "indexProvider": "text-3.0",
+          "properties": [
+            "name"
+          ],
+          "labels": [
+            "Pet"
+          ],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "VECTOR",
+          "totalSize": 0,
+          "indexProvider": "vector-2026.06",
+          "properties": [
+            "embedding"
+          ],
+          "labels": [
+            "Movie"
+          ],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "POINT",
+          "totalSize": 0,
+          "indexProvider": "point-1.0",
+          "properties": [
+            "sublocation"
+          ],
+          "labels": [
+            "Person"
+          ],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "RANGE",
+          "totalSize": 0,
+          "indexProvider": "range-1.0",
+          "properties": [
+            "employeeId"
+          ],
+          "labels": [
+            "Manager"
+          ],
+          "estimatedUniqueSize": 0
+        },
+        {
+          "updatesSinceEstimation": 0,
+          "indexType": "RANGE",
+          "totalSize": 0,
+          "indexProvider": "range-1.0",
+          "properties": [
+            "imdbId"
+          ],
+          "labels": [
+            "Director"
+          ],
+          "estimatedUniqueSize": 0
+        }
+      ],
+      "constraints": [
+        {
+          "enforcedLabel": "Animal",
+          "label": "Pet",
+          "type": "Node label existence constraint",
+          "properties": []
+        },
+        {
+          "propertyTypes": [
+            "STRING"
+          ],
+          "label": "City",
+          "type": "Property type constraint",
+          "properties": [
+            "name"
+          ]
+        },
+        {
+          "relationshipType": "LIVES_IN",
+          "type": "Existence constraint",
+          "properties": [
+            "since"
+          ]
+        },
+        {
+          "propertyTypes": [
+            "STRING"
+          ],
+          "label": "Pet",
+          "type": "Property type constraint",
+          "properties": [
+            "name"
+          ]
+        },
+        {
+          "type": "Uniqueness constraint",
+          "properties": [
+            "employeeId"
+          ],
+          "label": "Manager"
+        },
+        {
+          "propertyTypes": [
+            "STRING"
+          ],
+          "label": "Person",
+          "type": "Property type constraint",
+          "properties": [
+            "name"
+          ]
+        },
+        {
+          "type": "Existence constraint",
+          "properties": [
+            "name"
+          ],
+          "label": "Person"
+        },
+        {
+          "enforcedLabel": "Resident",
+          "label": "Pet",
+          "type": "Node label existence constraint",
+          "properties": []
+        },
+        {
+          "propertyTypes": [
+            "INTEGER"
+          ],
+          "label": "City",
+          "type": "Property type constraint",
+          "properties": [
+            "population"
+          ]
+        },
+        {
+          "propertyTypes": [
+            "STRING"
+          ],
+          "label": "Pet",
+          "type": "Property type constraint",
+          "properties": [
+            "healthCertificate"
+          ]
+        },
+        {
+          "enforcedLabel": "Resident",
+          "label": "Person",
+          "type": "Node label existence constraint",
+          "properties": []
+        },
+        {
+          "type": "Existence constraint",
+          "properties": [
+            "name"
+          ],
+          "label": "City"
+        },
+        {
+          "enforcedLabel": "City",
+          "endpointType": "END",
+          "relationshipType": "LIVES_IN",
+          "type": "Relationship endpoint label constraint",
+          "properties": []
+        },
+        {
+          "enforcedLabel": "Resident",
+          "endpointType": "START",
+          "relationshipType": "LIVES_IN",
+          "type": "Relationship endpoint label constraint",
+          "properties": []
+        },
+        {
+          "type": "Node Key",
+          "properties": [
+            "imdbId"
+          ],
+          "label": "Director"
+        },
+        {
+          "propertyTypes": [
+            "DATE"
+          ],
+          "relationshipType": "LIVES_IN",
+          "type": "Property type constraint",
+          "properties": [
+            "since"
+          ]
+        }
+      ]
+    }
+  }
+]

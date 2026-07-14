@@ -31,4 +31,27 @@ public class RelationshipTypeTest {
                 "\"HAS_CHILD\" .. \"X\"");
     }
 
+    @Test
+    void shouldExportCorrectPlantUmlWithEndpointConstraints() {
+        RelationshipType rt = new RelationshipType("HAS_CHILD");
+        Set<String> srcNodeLabels = new HashSet<>();
+        srcNodeLabels.add("Thing");
+        Set<String> targetNodeLabels = new HashSet<>();
+        targetNodeLabels.add("Stuff");
+        rt.setSourceNodeLabels(srcNodeLabels);
+        rt.setTargetNodeLabels(targetNodeLabels);
+
+        Set<String> constrainedSrc = new HashSet<>();
+        constrainedSrc.add("Thing");
+        rt.setConstrainedSourceNodeLabels(constrainedSrc);
+
+        Set<String> constrainedTgt = new HashSet<>();
+        constrainedTgt.add("Stuff");
+        rt.setConstrainedTargetNodeLabels(constrainedTgt);
+
+        assertEquals("class \"HAS_CHILD\" R\n" +
+                "\"Thing\" -- \"HAS_CHILD\" : <&lock-locked>\n" +
+                "\"HAS_CHILD\" --> \"Stuff\" : <&lock-locked>", rt.asPlantUml());
+    }
+
 }

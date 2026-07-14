@@ -18,4 +18,16 @@ public class NodeLabelTest {
                 "}", nl.asPlantUml());
     }
 
+    @Test
+    void shouldExportCorrectPlantUmlWithImpliedLabels() {
+        NodeLabel nl = new NodeLabel("Pet");
+        nl.addProperty("name", "String");
+        nl.getImpliedLabels().add("Resident");
+        nl.getImpliedLabels().add("Animal");
+        assertEquals("class \"Pet\" N {\n" +
+                "    <&double-quote-serif-left> name\n" +
+                "}\n" +
+                "\"Animal\" \"implied\" <|-- \"Pet\"\n" +
+                "\"Resident\" \"implied\" <|-- \"Pet\"", nl.asPlantUml());
+    }
 }

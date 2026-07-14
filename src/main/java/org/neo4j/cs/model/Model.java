@@ -36,15 +36,25 @@ public class Model {
                             .filter(p -> !"UNKNOWN".equalsIgnoreCase(p.getType()))
                             .collect(Collectors.toList());
 
-                    boolean isIndexed = props.stream().anyMatch(Property::isIndexed);
+                    List<String> indexTypes = props.stream()
+                            .flatMap(p -> p.getIndexTypes().stream())
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .collect(Collectors.toList());
+                    List<String> constraintTypes = props.stream()
+                            .flatMap(p -> p.getConstraintTypes().stream())
+                            .filter(Objects::nonNull)
+                            .distinct()
+                            .collect(Collectors.toList());
                     String key = props.get(0).getKey();
 
+                    Property mergedProp;
                     if (knownTypes.isEmpty()) {
                         // Everything was UNKNOWN, just return one
-                        return new Property(key, props.get(0).getType(), isIndexed);
+                        mergedProp = new Property(key, props.get(0).getType());
                     } else if (knownTypes.size() == 1) {
                         // Only one typed property exists, it wins
-                        return new Property(key, knownTypes.get(0).getType(), isIndexed);
+                        mergedProp = new Property(key, knownTypes.get(0).getType());
                     } else {
                         // 2. Multiple different known types exist
                         // Check if they are actually all the same type
@@ -54,12 +64,15 @@ public class Model {
                                 .count();
 
                         if (distinctTypeCount == 1) {
-                            return new Property(key, knownTypes.get(0).getType(), isIndexed);
+                            mergedProp = new Property(key, knownTypes.get(0).getType());
                         } else {
                             // Resolve ambiguity by forcing UNKNOWN
-                            return new Property(key, "UNKNOWN", isIndexed);
+                            mergedProp = new Property(key, "UNKNOWN");
                         }
                     }
+                    mergedProp.setIndexTypes(indexTypes);
+                    mergedProp.setConstraintTypes(constraintTypes);
+                    return mergedProp;
                 })
                 .collect(Collectors.toSet());
     }
@@ -79,6 +92,22 @@ public class Model {
                             NodeLabel mergedNode = new NodeLabel(value1.getLabel(), mergedProps);
                             String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
                             mergedNode.setProvenance(mergedProv);
+                            List<String> mergedImplied = new ArrayList<>();
+                            if (value1.getImpliedLabels() != null) {
+                                for (String impl : value1.getImpliedLabels()) {
+                                    if (!mergedImplied.contains(impl)) {
+                                        mergedImplied.add(impl);
+                                    }
+                                }
+                            }
+                            if (value2.getImpliedLabels() != null) {
+                                for (String impl : value2.getImpliedLabels()) {
+                                    if (!mergedImplied.contains(impl)) {
+                                        mergedImplied.add(impl);
+                                    }
+                                }
+                            }
+                            mergedNode.setImpliedLabels(mergedImplied);
                             return mergedNode;
                         }
                     )
@@ -112,6 +141,16 @@ public class Model {
                                     allUndirNodeLabels.addAll(value1.getUndirectedNodeLabels());
                                     allUndirNodeLabels.addAll(value2.getUndirectedNodeLabels());
                                     mergedRelationshipType.setUndirectedNodeLabels(allUndirNodeLabels);
+
+                                    Set<String> allConstrainedSrcNodeLabels = new HashSet<>();
+                                    allConstrainedSrcNodeLabels.addAll(value1.getConstrainedSourceNodeLabels());
+                                    allConstrainedSrcNodeLabels.addAll(value2.getConstrainedSourceNodeLabels());
+                                    mergedRelationshipType.setConstrainedSourceNodeLabels(allConstrainedSrcNodeLabels);
+
+                                    Set<String> allConstrainedTgtNodeLabels = new HashSet<>();
+                                    allConstrainedTgtNodeLabels.addAll(value1.getConstrainedTargetNodeLabels());
+                                    allConstrainedTgtNodeLabels.addAll(value2.getConstrainedTargetNodeLabels());
+                                    mergedRelationshipType.setConstrainedTargetNodeLabels(allConstrainedTgtNodeLabels);
 
                                     String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
                                     mergedRelationshipType.setProvenance(mergedProv);

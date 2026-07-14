@@ -27,6 +27,14 @@ public class RelationshipType  extends EntityType {
     @Setter
     Set<String> undirectedNodeLabels = new HashSet<>();
 
+    @Getter
+    @Setter
+    Set<String> constrainedSourceNodeLabels = new HashSet<>();
+
+    @Getter
+    @Setter
+    Set<String> constrainedTargetNodeLabels = new HashSet<>();
+
     public RelationshipType addUndirectedNodelabel(String label) {
         this.undirectedNodeLabels.add(label);
         return this;
@@ -58,10 +66,10 @@ public class RelationshipType  extends EntityType {
         }
 
         String starts = this.sourceNodeLabels.stream()
-                .map ( lbl -> '"'+lbl+'"'+ " -- " +'"'+ this.type+ '"')
+                .map ( lbl -> '"'+lbl+'"'+ " -- " +'"'+ this.type+ '"' + (this.constrainedSourceNodeLabels.contains(lbl) ? " : <&lock-locked>" : ""))
                 .collect(Collectors.joining("\n"));
         String ends = this.targetNodeLabels.stream()
-                .map ( lbl -> '"'+ this.type+ '"' + " --> " +'"'+lbl+'"' )
+                .map ( lbl -> '"'+ this.type+ '"' + " --> " +'"'+lbl+'"' + (this.constrainedTargetNodeLabels.contains(lbl) ? " : <&lock-locked>" : ""))
                 .collect(Collectors.joining("\n"));
         String undirecteds = this.undirectedNodeLabels.stream()
                 .map ( lbl -> '"'+ this.type+ '"' + " .. " +'"'+lbl+'"' )
