@@ -2,7 +2,9 @@ package org.neo4j.cs.model;
 
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,6 +37,18 @@ public class RelationshipType  extends EntityType {
     @Setter
     Set<String> constrainedTargetNodeLabels = new HashSet<>();
 
+    @Getter
+    @Setter
+    private Long count;
+
+    @Getter
+    @Setter
+    private List<LabelCount> sourceLabelCounts = new ArrayList<>();
+
+    @Getter
+    @Setter
+    private List<LabelCount> targetLabelCounts = new ArrayList<>();
+
     public RelationshipType addUndirectedNodelabel(String label) {
         this.undirectedNodeLabels.add(label);
         return this;
@@ -54,8 +68,37 @@ public class RelationshipType  extends EntityType {
     }
 
     public String asPlantUml() {
+        return asPlantUml(false);
+    }
+
+    private Long getSourceLabelCount(String label) {
+        if (sourceLabelCounts == null) return null;
+        for (LabelCount lc : sourceLabelCounts) {
+            if (lc.getLabel().equals(label)) {
+                return lc.getCount();
+            }
+        }
+        return null;
+    }
+
+    private Long getTargetLabelCount(String label) {
+        if (targetLabelCounts == null) return null;
+        for (LabelCount lc : targetLabelCounts) {
+            if (lc.getLabel().equals(label)) {
+                return lc.getCount();
+            }
+        }
+        return null;
+    }
+
+    public String asPlantUml(boolean includeCounts) {
         String plantUml = "";
-        String classDef = "class "+ '"' +this.type+'"'+" R";
+        String classDef;
+        if (includeCounts && this.count != null) {
+            classDef = "class " + '"' + this.type + '"' + "<" + this.count + "> R";
+        } else {
+            classDef = "class " + '"' + this.type + '"' + " R";
+        }
         if (this.getProperties().isEmpty()) {
             plantUml = classDef;
         } else {
@@ -66,10 +109,34 @@ public class RelationshipType  extends EntityType {
         }
 
         String starts = this.sourceNodeLabels.stream()
-                .map ( lbl -> '"'+lbl+'"'+ " -- " +'"'+ this.type+ '"' + (this.constrainedSourceNodeLabels.contains(lbl) ? " : <&lock-locked>" : ""))
+                .map ( lbl -> {
+                    String suffix = "";
+                    boolean constrained = this.constrainedSourceNodeLabels.contains(lbl);
+                    Long c = includeCounts ? getSourceLabelCount(lbl) : null;
+                    if (constrained && c != null) {
+                        suffix = " : <&lock-locked> " + c;
+                    } else if (constrained) {
+                        suffix = " : <&lock-locked>";
+                    } else if (c != null) {
+                        suffix = " : " + c;
+                    }
+                    return '"' + lbl + '"' + " -- " + '"' + this.type + '"' + suffix;
+                })
                 .collect(Collectors.joining("\n"));
         String ends = this.targetNodeLabels.stream()
-                .map ( lbl -> '"'+ this.type+ '"' + " --> " +'"'+lbl+'"' + (this.constrainedTargetNodeLabels.contains(lbl) ? " : <&lock-locked>" : ""))
+                .map ( lbl -> {
+                    String suffix = "";
+                    boolean constrained = this.constrainedTargetNodeLabels.contains(lbl);
+                    Long c = includeCounts ? getTargetLabelCount(lbl) : null;
+                    if (constrained && c != null) {
+                        suffix = " : <&lock-locked> " + c;
+                    } else if (constrained) {
+                        suffix = " : <&lock-locked>";
+                    } else if (c != null) {
+                        suffix = " : " + c;
+                    }
+                    return '"' + this.type + '"' + " --> " + '"' + lbl + '"' + suffix;
+                })
                 .collect(Collectors.joining("\n"));
         String undirecteds = this.undirectedNodeLabels.stream()
                 .map ( lbl -> '"'+ this.type+ '"' + " .. " +'"'+lbl+'"' )

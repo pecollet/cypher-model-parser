@@ -23,6 +23,25 @@ public class Model {
     @Setter
     Map<String, RelationshipType> relationshipTypes = new HashMap<>();
 
+    private List<LabelCount> mergeLabelCounts(List<LabelCount> l1, List<LabelCount> l2) {
+        Map<String, Long> mergedMap = new HashMap<>();
+        if (l1 != null) {
+            for (LabelCount lc : l1) {
+                mergedMap.put(lc.getLabel(), lc.getCount());
+            }
+        }
+        if (l2 != null) {
+            for (LabelCount lc : l2) {
+                mergedMap.merge(lc.getLabel(), lc.getCount(), Math::max);
+            }
+        }
+        List<LabelCount> result = new ArrayList<>();
+        for (Map.Entry<String, Long> entry : mergedMap.entrySet()) {
+            result.add(new LabelCount(entry.getKey(), entry.getValue()));
+        }
+        return result;
+    }
+
     /**
      * Helper to merge property sets based on key uniqueness and type priority.
      */
@@ -108,6 +127,7 @@ public class Model {
                                 }
                             }
                             mergedNode.setImpliedLabels(mergedImplied);
+                            mergedNode.setCount(value1.getCount() != null ? value1.getCount() : value2.getCount());
                             return mergedNode;
                         }
                     )
@@ -154,6 +174,9 @@ public class Model {
 
                                     String mergedProv = value1.getProvenance().equals(value2.getProvenance()) ? value1.getProvenance() : "both";
                                     mergedRelationshipType.setProvenance(mergedProv);
+                                    mergedRelationshipType.setCount(value1.getCount() != null ? value1.getCount() : value2.getCount());
+                                    mergedRelationshipType.setSourceLabelCounts(mergeLabelCounts(value1.getSourceLabelCounts(), value2.getSourceLabelCounts()));
+                                    mergedRelationshipType.setTargetLabelCounts(mergeLabelCounts(value1.getTargetLabelCounts(), value2.getTargetLabelCounts()));
                                     return mergedRelationshipType;
                                 }
                         )
@@ -176,12 +199,15 @@ public class Model {
     }
 
     public String asPlantUml() {
+        return asPlantUml(false);
+    }
 
+    public String asPlantUml(boolean includeCounts) {
         String nodeStatements = this.getNodeLabels().entrySet().stream()
-                .map(e -> e.getValue().asPlantUml())
+                .map(e -> e.getValue().asPlantUml(includeCounts))
                 .collect(Collectors.joining("\n"));
         String relStatements = this.getRelationshipTypes().entrySet().stream()
-                .map(e -> e.getValue().asPlantUml())
+                .map(e -> e.getValue().asPlantUml(includeCounts))
                 .collect(Collectors.joining("\n"));
 
         return nodeStatements + "\n" + relStatements;

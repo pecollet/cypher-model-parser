@@ -20,13 +20,26 @@ public class NodeLabel extends EntityType {
     @Setter
     private List<String> impliedLabels = new ArrayList<>();
 
+    @Getter
+    @Setter
+    private Long count;
+
     public NodeLabel(String label, Set<Property> properties) {
         this(label);
         this.setProperties(properties);
     }
 
     public String asPlantUml() {
-        String classDef = "class \"" + this.label + "\" N";
+        return asPlantUml(false);
+    }
+
+    public String asPlantUml(boolean includeCounts) {
+        String classDef;
+        if (includeCounts && this.count != null) {
+            classDef = "class \"" + this.label + "\"<" + this.count + "> N";
+        } else {
+            classDef = "class \"" + this.label + "\" N";
+        }
         String plantUml;
         if (this.getProperties().isEmpty()) {
             plantUml = classDef;
@@ -39,7 +52,7 @@ public class NodeLabel extends EntityType {
 
         if (this.impliedLabels != null && !this.impliedLabels.isEmpty()) {
             String inheritance = this.impliedLabels.stream().sorted()
-                    .map(implied -> "\"" + implied + "\" \"implied\" <|-- \"" + this.label + "\"")
+                    .map(implied -> "\"" + implied + "\" \"implied\" <|-[dotted]- \"" + this.label + "\"")
                     .collect(Collectors.joining("\n"));
             plantUml += "\n" + inheritance;
         }
