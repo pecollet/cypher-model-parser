@@ -52,7 +52,7 @@ public class NodeLabel extends EntityType {
 
         if (this.impliedLabels != null && !this.impliedLabels.isEmpty()) {
             String inheritance = this.impliedLabels.stream().sorted()
-                    .map(implied -> "\"" + implied + "\" \"implied\" <|-- \"" + this.label + "\"")
+                    .map(implied -> "\"" + implied + "\" \"implied\" <|-[dotted]- \"" + this.label + "\"")
                     .collect(Collectors.joining("\n"));
             plantUml += "\n" + inheritance;
         }
