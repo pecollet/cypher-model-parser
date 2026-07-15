@@ -106,7 +106,13 @@ public class Parser implements Callable<Integer> {
         if (exportJson) {
             saveJson(fullModel, outputDir + "/model.json");
         }
-        int retCode = savePlantUml(fullModel, outputDir+ "/model.puml", FileFormat.SVG, layoutEngine);
+        int retCode = savePlantUml(fullModel, outputDir+ "/model.puml", FileFormat.SVG, layoutEngine, false);
+        if (graphCountsFile != null) {
+            int countsRetCode = savePlantUml(fullModel, outputDir+ "/model-with-counts.puml", FileFormat.SVG, layoutEngine, true);
+            if (retCode == 0) {
+                retCode = countsRetCode;
+            }
+        }
         return retCode;
     }
 
@@ -128,6 +134,10 @@ public class Parser implements Callable<Integer> {
     }
 
     public int savePlantUml(Model m, String filePath, FileFormat imageFormat, LayoutEngine engine) {
+        return savePlantUml(m, filePath, imageFormat, engine, false);
+    }
+
+    public int savePlantUml(Model m, String filePath, FileFormat imageFormat, LayoutEngine engine, boolean includeCounts) {
         String prefix = "@startuml\n";
         String layoutCommand = "";
         if (engine == LayoutEngine.SMETANA) layoutCommand = "!pragma layout smetana\n";
@@ -138,7 +148,7 @@ public class Parser implements Callable<Integer> {
                 "!define N << (N,lightblue) >>\n" +
                 "!define R << (R,orange) >>\n";
         String suffix = "\n@enduml";
-        String plantUmlStr = prefix + layoutCommand + stylingCommands + macros + m.asPlantUml() + suffix;
+        String plantUmlStr = prefix + layoutCommand + stylingCommands + macros + m.asPlantUml(includeCounts) + suffix;
 
         SourceStringReader reader = new SourceStringReader(plantUmlStr);
         try {

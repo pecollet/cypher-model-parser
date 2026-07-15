@@ -85,6 +85,10 @@ public class ModelTest {
 
             NodeLabel person = model.getNodeLabels().get("Person");
             assertEquals("graphcounts", person.getProvenance());
+            assertEquals(100L, person.getCount());
+
+            NodeLabel city = model.getNodeLabels().get("City");
+            assertEquals(50L, city.getCount());
 
             // Check property and index on Person
             Property idProp = person.getProperties().stream()
@@ -113,8 +117,15 @@ public class ModelTest {
             assertEquals("graphcounts", loves.getProvenance());
             assertEquals(Set.of("Person"), loves.getSourceNodeLabels());
             assertEquals(Set.of("City"), loves.getTargetNodeLabels());
+            assertEquals(1, loves.getSourceLabelCounts().size());
+            assertEquals("Person", loves.getSourceLabelCounts().get(0).getLabel());
+            assertEquals(5L, loves.getSourceLabelCounts().get(0).getCount());
+            assertEquals(1, loves.getTargetLabelCounts().size());
+            assertEquals("City", loves.getTargetLabelCounts().get(0).getLabel());
+            assertEquals(5L, loves.getTargetLabelCounts().get(0).getCount());
 
             RelationshipType livesIn = model.getRelationshipTypes().get("LIVES_IN");
+            assertEquals(10L, livesIn.getCount());
             assertEquals(Set.of("Resident"), livesIn.getSourceNodeLabels());
             assertEquals(Set.of("City"), livesIn.getTargetNodeLabels());
             assertEquals(Set.of("Resident"), livesIn.getConstrainedSourceNodeLabels());

@@ -30,4 +30,14 @@ public class NodeLabelTest {
                 "\"Animal\" \"implied\" <|-- \"Pet\"\n" +
                 "\"Resident\" \"implied\" <|-- \"Pet\"", nl.asPlantUml());
     }
+
+    @Test
+    void shouldExportCorrectPlantUmlWithCounts() {
+        NodeLabel nl = new NodeLabel("Person");
+        nl.setCount(50000L);
+        nl.addProperty("name", "String");
+        assertEquals("class \"Person\"<50000> N {\n" +
+                "    <&double-quote-serif-left> name\n" +
+                "}", nl.asPlantUml(true));
+    }
 }

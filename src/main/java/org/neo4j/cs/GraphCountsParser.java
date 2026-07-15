@@ -7,6 +7,7 @@ import org.neo4j.cs.model.NodeLabel;
 import org.neo4j.cs.model.RelationshipType;
 import org.neo4j.cs.model.Property;
 import org.neo4j.cs.model.EntityType;
+import org.neo4j.cs.model.LabelCount;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,7 +65,10 @@ public class GraphCountsParser {
         for (JsonNode node : nodesNode) {
             if (node.has("label") && !node.get("label").isNull()) {
                 String label = node.get("label").asText();
-                getOrCreateNodeLabel(model, label);
+                NodeLabel nl = getOrCreateNodeLabel(model, label);
+                if (nl != null && node.has("count") && !node.get("count").isNull()) {
+                    nl.setCount(node.get("count").asLong());
+                }
             }
         }
     }
@@ -76,15 +80,37 @@ public class GraphCountsParser {
                 String type = rel.get("relationshipType").asText();
                 RelationshipType rt = getOrCreateRelationshipType(model, type);
                 if (rt != null) {
-                    if (rel.has("startLabel") && !rel.get("startLabel").isNull()) {
-                        String startLabel = rel.get("startLabel").asText();
-                        rt.getSourceNodeLabels().add(startLabel);
-                        getOrCreateNodeLabel(model, startLabel);
-                    }
-                    if (rel.has("endLabel") && !rel.get("endLabel").isNull()) {
-                        String endLabel = rel.get("endLabel").asText();
-                        rt.getTargetNodeLabels().add(endLabel);
-                        getOrCreateNodeLabel(model, endLabel);
+                    boolean hasStart = rel.has("startLabel") && !rel.get("startLabel").isNull();
+                    boolean hasEnd = rel.has("endLabel") && !rel.get("endLabel").isNull();
+                    if (rel.has("count") && !rel.get("count").isNull()) {
+                        long count = rel.get("count").asLong();
+                        if (!hasStart && !hasEnd) {
+                            rt.setCount(count);
+                        } else {
+                            if (hasStart) {
+                                String startLabel = rel.get("startLabel").asText();
+                                rt.getSourceNodeLabels().add(startLabel);
+                                getOrCreateNodeLabel(model, startLabel);
+                                rt.getSourceLabelCounts().add(new LabelCount(startLabel, count));
+                            }
+                            if (hasEnd) {
+                                String endLabel = rel.get("endLabel").asText();
+                                rt.getTargetNodeLabels().add(endLabel);
+                                getOrCreateNodeLabel(model, endLabel);
+                                rt.getTargetLabelCounts().add(new LabelCount(endLabel, count));
+                            }
+                        }
+                    } else {
+                        if (hasStart) {
+                            String startLabel = rel.get("startLabel").asText();
+                            rt.getSourceNodeLabels().add(startLabel);
+                            getOrCreateNodeLabel(model, startLabel);
+                        }
+                        if (hasEnd) {
+                            String endLabel = rel.get("endLabel").asText();
+                            rt.getTargetNodeLabels().add(endLabel);
+                            getOrCreateNodeLabel(model, endLabel);
+                        }
                     }
                 }
             }
