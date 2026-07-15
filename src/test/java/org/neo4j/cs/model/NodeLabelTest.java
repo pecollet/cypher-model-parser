@@ -27,8 +27,8 @@ public class NodeLabelTest {
         assertEquals("class \"Pet\" N {\n" +
                 "    <&double-quote-serif-left> name\n" +
                 "}\n" +
-                "\"Animal\" \"implied\" <|-- \"Pet\"\n" +
-                "\"Resident\" \"implied\" <|-- \"Pet\"", nl.asPlantUml());
+                "\"Animal\" \"implied\" <|-[dotted]- \"Pet\"\n" +
+                "\"Resident\" \"implied\" <|-[dotted]- \"Pet\"", nl.asPlantUml());
     }
 
     @Test
