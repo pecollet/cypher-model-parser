@@ -30,6 +30,10 @@ public class Property implements Comparable{
     @Getter
     @Setter
     List<String> constraintTypes = new ArrayList<>();
+    
+    @EqualsAndHashCode.Include
+    @Getter
+    Integer estimatedDistinctValues;
 
 
     private static final Map<String, String> typeIconMap = new HashMap<>();
@@ -75,6 +79,12 @@ public class Property implements Comparable{
     public void addIndexType(String indexType) {
         if (indexType != null && !this.indexTypes.contains(indexType)) {
             this.indexTypes.add(indexType);
+        }
+    }
+
+    public void setEstimatedDistinctValues(Integer count) {
+        if (count != null) {
+            this.estimatedDistinctValues = count;
         }
     }
 

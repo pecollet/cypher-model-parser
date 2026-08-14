@@ -66,6 +66,11 @@ public class Model {
                             .distinct()
                             .collect(Collectors.toList());
                     String key = props.get(0).getKey();
+                    Integer distinctValues = props.stream()
+                            .map(Property::getEstimatedDistinctValues)
+                            .filter(Objects::nonNull)
+                            .findFirst()
+                            .orElse(null);
 
                     Property mergedProp;
                     if (knownTypes.isEmpty()) {
@@ -91,6 +96,7 @@ public class Model {
                     }
                     mergedProp.setIndexTypes(indexTypes);
                     mergedProp.setConstraintTypes(constraintTypes);
+                    mergedProp.setEstimatedDistinctValues(distinctValues);
                     return mergedProp;
                 })
                 .collect(Collectors.toSet());
