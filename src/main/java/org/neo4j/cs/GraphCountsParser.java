@@ -129,6 +129,7 @@ public class GraphCountsParser {
             if (props.isEmpty()) continue;
 
             String indexType = index.has("indexType") && !index.get("indexType").isNull() ? index.get("indexType").asText() : "RANGE";
+            Integer indexEstimatedUniqueSize = index.has("estimatedUniqueSize") && !index.get("estimatedUniqueSize").isNull() ? index.get("estimatedUniqueSize").asInt() : null;
 
             if (index.has("labels") && index.get("labels").isArray() && index.get("labels").size() > 0) {
                 for (JsonNode labelNode : index.get("labels")) {
@@ -138,6 +139,7 @@ public class GraphCountsParser {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(nl, propName);
                             p.addIndexType(indexType);
+                            p.setEstimatedDistinctValues(indexEstimatedUniqueSize);
                         }
                     }
                 }
@@ -149,6 +151,7 @@ public class GraphCountsParser {
                         for (String propName : props) {
                             Property p = getOrCreateProperty(rt, propName);
                             p.addIndexType(indexType);
+                            p.setEstimatedDistinctValues(indexEstimatedUniqueSize);
                         }
                     }
                 }
