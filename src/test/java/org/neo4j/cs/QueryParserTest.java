@@ -71,12 +71,31 @@ public class QueryParserTest {
         assertEquals(0, p.getErrors());
         assertEquals(Set.of("Customer"), m.getNodeLabels().keySet());
         assertEquals(Set.of(
-                new Property("email", "UNKNOWN"),
-                new Property("age", "UNKNOWN"),
-                new Property("loyaltyTier", "UNKNOWN"),
-                new Property("verified", "UNKNOWN"),
+                new Property("email", "String"),
+                new Property("age", "Number"),
+                new Property("loyaltyTier", "String"),
+                new Property("verified", "Boolean"),
                 new Property("name", "UNKNOWN")
         ), m.getNodeLabels().get("Customer").getProperties());
+    }
+
+    @Test
+    void shouldInferTypesFromObfuscatedParameterNames() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:Node {score: $`OBFUSCATED FLOAT 1`, tags: $`OBFUSCATED LIST 1`, " +
+                "born: $`OBFUSCATED DATE 1`, loc: $`OBFUSCATED POINT 1`}) " +
+                "WHERE n.active = $`OBFUSCATED BOOLEAN 1` AND n.id = $plain " +
+                "RETURN n");
+
+        assertEquals(0, p.getErrors());
+        assertEquals(Set.of(
+                new Property("score", "Number"),
+                new Property("tags", "List"),
+                new Property("born", "Date"),
+                new Property("loc", "Point"),
+                new Property("active", "Boolean"),
+                new Property("id", "UNKNOWN")
+        ), m.getNodeLabels().get("Node").getProperties());
     }
 
     @Test

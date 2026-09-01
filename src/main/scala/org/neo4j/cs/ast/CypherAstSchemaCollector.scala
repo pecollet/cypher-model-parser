@@ -37,6 +37,9 @@ object CypherAstSchemaCollector {
   // Cache the function registry to avoid expensive repeated calls (116 native function included)
   private lazy val cachedFunctionRegistry = CypherFunctionRegistry.allFunctions
 
+  // Neo4j query-log obfuscation replaces literals with $`OBFUSCATED <TYPE> <N>`
+  private val obfuscatedParamPattern = """(?i)^OBFUSCATED\s+(.+?)\s+\d+$""".r
+
   /** One “edge” in the pattern */
   final case class RelationshipDescriptor(
                                            relType: String,
@@ -692,8 +695,31 @@ object CypherAstSchemaCollector {
     // function calls: date("..."), toInteger(...), etc
     case f: FunctionInvocation =>
       inferReturnedTypeFromFunction(f).orElse(Some(UnknownType))
+    // $`OBFUSCATED STRING 1` encodes the original literal type in the parameter name
+    case Parameter(name, _, _) =>
+      inferTypeFromObfuscatedParameterName(name).orElse(Some(UnknownType))
     // parameters / variables / functions → unknown
     case _                 => Some(UnknownType)
+  }
+
+  private def inferTypeFromObfuscatedParameterName(name: String): Option[PropertyType] = name match {
+    case obfuscatedParamPattern(typeName) => Some(mapObfuscatedTypeName(typeName))
+    case _ => None
+  }
+
+  private def mapObfuscatedTypeName(raw: String): PropertyType = raw.trim.toUpperCase.replaceAll("\\s+", " ") match {
+    case "STRING" => StringType
+    case "INTEGER" | "NUMBER" => IntegerType
+    case "FLOAT" | "DOUBLE" => FloatType
+    case "BOOLEAN" => BooleanType
+    case "DATE" => DateType
+    case "TIME" | "LOCAL TIME" | "LOCALTIME" | "ZONED TIME" | "ZONEDTIME" => ZonedTimeType
+    case "DATETIME" | "LOCAL DATETIME" | "LOCALDATETIME" | "ZONED DATETIME" | "ZONEDDATETIME" => ZonedDateTimeType
+    case "DURATION" => DurationType
+    case "POINT" => PointType
+    case "LIST" => ListType
+    case "VECTOR" => VectorType
+    case _ => UnknownType
   }
 
   private def mapCypherTypeToPropertyType(ct: CypherType): PropertyType = {
