@@ -64,7 +64,7 @@ public class QueryParser {
         return fullModel;
     }
 
-    public boolean isObfuscated(String query) {
+    public boolean isStarObfuscated(String query) {
         return query.contains("******");
     }
 
@@ -81,7 +81,7 @@ public class QueryParser {
         Map<String, NodeLabel> nodeLabels = new HashMap<>();
         Map<String, RelationshipType> relationshipTypes = new HashMap<>();
 
-        if (isObfuscated(query)) {
+        if (isStarObfuscated(query)) {
             query = preProcessObfuscatedQuery(query);
         }
         try {

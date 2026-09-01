@@ -13,12 +13,23 @@ import static org.junit.jupiter.api.Assertions.*;
 public class QueryParserTest {
 
     @Test
-    void shouldIdentifyObfuscatedQueries() {
+    void shouldIdentifyStarObfuscatedQueries() {
         var p = new QueryParser();
-        assertFalse(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN n"));
-        assertTrue(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n"));
-        assertTrue(p.isObfuscated("MATCH(s:Stuff)-[:IS******..******]->(:Class) RETURN n"));
-        assertFalse(p.isObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN *"));
+        assertFalse(p.isStarObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN n"));
+        assertTrue(p.isStarObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n"));
+        assertTrue(p.isStarObfuscated("MATCH(s:Stuff)-[:IS******..******]->(:Class) RETURN n"));
+        assertFalse(p.isStarObfuscated("MATCH(s:Stuff)-[:IS]->(:Class) RETURN *"));
+    }
+
+    @Test
+    void shouldNotTreatParameterObfuscationAsStarObfuscated() {
+        var p = new QueryParser();
+        String query = "MATCH (c:Customer {email: $`OBFUSCATED STRING 1`, age: $`OBFUSCATED INTEGER 1`}) " +
+                "WHERE c.age > $`OBFUSCATED INTEGER 1` AND c.loyaltyTier = $`OBFUSCATED STRING 2` " +
+                "SET c.verified = $`OBFUSCATED BOOLEAN 1` " +
+                "RETURN c.name";
+        assertFalse(p.isStarObfuscated(query));
+        assertEquals(query, p.preProcessObfuscatedQuery(query));
     }
 
     @Test
@@ -28,7 +39,44 @@ public class QueryParserTest {
                 "MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  $abcde RETURN n",
                 p.preProcessObfuscatedQuery("MATCH(s:Stuff)-[:IS]->(:Class) WHERE s.id =  ****** RETURN n")
         );
-        assertTrue(true);
+    }
+
+    @Test
+    void shouldParseStarObfuscatedQuery() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (c:Customer {email: ******, age: ******}) " +
+                "WHERE c.age > ****** AND c.loyaltyTier = ****** " +
+                "SET c.verified = ****** " +
+                "RETURN c.name");
+
+        assertEquals(0, p.getErrors());
+        assertEquals(Set.of("Customer"), m.getNodeLabels().keySet());
+        assertEquals(Set.of(
+                new Property("email", "UNKNOWN"),
+                new Property("age", "UNKNOWN"),
+                new Property("loyaltyTier", "UNKNOWN"),
+                new Property("verified", "UNKNOWN"),
+                new Property("name", "UNKNOWN")
+        ), m.getNodeLabels().get("Customer").getProperties());
+    }
+
+    @Test
+    void shouldParseParameterObfuscatedQuery() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (c:Customer {email: $`OBFUSCATED STRING 1`, age: $`OBFUSCATED INTEGER 1`}) " +
+                "WHERE c.age > $`OBFUSCATED INTEGER 1` AND c.loyaltyTier = $`OBFUSCATED STRING 2` " +
+                "SET c.verified = $`OBFUSCATED BOOLEAN 1` " +
+                "RETURN c.name");
+
+        assertEquals(0, p.getErrors());
+        assertEquals(Set.of("Customer"), m.getNodeLabels().keySet());
+        assertEquals(Set.of(
+                new Property("email", "UNKNOWN"),
+                new Property("age", "UNKNOWN"),
+                new Property("loyaltyTier", "UNKNOWN"),
+                new Property("verified", "UNKNOWN"),
+                new Property("name", "UNKNOWN")
+        ), m.getNodeLabels().get("Customer").getProperties());
     }
 
     @Test
