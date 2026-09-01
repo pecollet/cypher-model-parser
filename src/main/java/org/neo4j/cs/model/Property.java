@@ -51,6 +51,7 @@ public class Property implements Comparable{
         typeIconMap.put("Duration", "timer");
         typeIconMap.put("Point", "location");
         typeIconMap.put("Vector", "grid-four-up");
+        typeIconMap.put("UUID", "code");
         //"key" "sort-ascending" "pin" "shield"
         constraintsIconMap.put("Key", "<&key>");
         constraintsIconMap.put("Uniqueness", "<&lock-locked>[≠]"); 

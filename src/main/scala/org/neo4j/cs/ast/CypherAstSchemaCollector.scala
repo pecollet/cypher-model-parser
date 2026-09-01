@@ -32,6 +32,7 @@ object CypherAstSchemaCollector {
   case object PointType    extends PropertyType
   case object ListType     extends PropertyType
   case object VectorType     extends PropertyType
+  case object UUIDType   extends PropertyType
   case object UnknownType extends PropertyType
 
   // Cache the function registry to avoid expensive repeated calls (116 native function included)
@@ -719,6 +720,7 @@ object CypherAstSchemaCollector {
     case "POINT" => PointType
     case "LIST" => ListType
     case "VECTOR" => VectorType
+    case "UUID" => UUIDType
     case _ => UnknownType
   }
 
@@ -735,6 +737,7 @@ object CypherAstSchemaCollector {
     else if (ct.toClassString == "List<Boolean>") ListType
     else if (ct.toClassString == "List<Point>") ListType
     else if (ct.toClassString == "Vector") VectorType
+    else if (ct.toClassString == "UUID") UUIDType
     //date function are not in the registry, so the below is not necessary
     //    else if (ct.toClassString == "xxxx") DateType
     //    else if (ct.toClassString == "xxxx") LocalTimeType
@@ -797,6 +800,7 @@ object CypherAstSchemaCollector {
         case PointType  => "Point"
         case ListType    => "List"
         case VectorType    => "Vector"
+        case UUIDType     => "UUID"
         case UnknownType => "UNKNOWN"
       }.getOrElse("UNKNOWN")
     )
