@@ -20,6 +20,10 @@ Usage: Parser [-hjV] [-d=dialect] [-l=layout-engine] [-o=OUTPUT-DIR]
 Parses cypher queries in <queriesFile> and generates a PlantUML class diagram.
       <queriesFile>       The file containing the queries
   -d, --dialect=dialect   The cypher dialect, one of : [5, 25]. Defaults to 25.
+  -gc, --graph-counts=GRAPH-COUNTS
+                          The JSON file containing graph counts, indexes, and
+                            constraints, coming from a CALL db.stats.retrieve('GRAPH COUNTS'). 
+                            If present, that model & the parsed model will be merged.
   -h, --help              Show this help message and exit.
   -j, --json              Export JSON model.
   -l, --layout-engine=layout-engine
