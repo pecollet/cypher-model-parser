@@ -32,10 +32,14 @@ object CypherAstSchemaCollector {
   case object PointType    extends PropertyType
   case object ListType     extends PropertyType
   case object VectorType     extends PropertyType
+  case object UUIDType   extends PropertyType
   case object UnknownType extends PropertyType
 
   // Cache the function registry to avoid expensive repeated calls (116 native function included)
   private lazy val cachedFunctionRegistry = CypherFunctionRegistry.allFunctions
+
+  // Neo4j query-log obfuscation replaces literals with $`OBFUSCATED <TYPE> <N>`
+  private val obfuscatedParamPattern = """(?i)^OBFUSCATED\s+(.+?)\s+\d+$""".r
 
   /** One “edge” in the pattern */
   final case class RelationshipDescriptor(
@@ -692,8 +696,32 @@ object CypherAstSchemaCollector {
     // function calls: date("..."), toInteger(...), etc
     case f: FunctionInvocation =>
       inferReturnedTypeFromFunction(f).orElse(Some(UnknownType))
+    // $`OBFUSCATED STRING 1` encodes the original literal type in the parameter name
+    case Parameter(name, _, _) =>
+      inferTypeFromObfuscatedParameterName(name).orElse(Some(UnknownType))
     // parameters / variables / functions → unknown
     case _                 => Some(UnknownType)
+  }
+
+  private def inferTypeFromObfuscatedParameterName(name: String): Option[PropertyType] = name match {
+    case obfuscatedParamPattern(typeName) => Some(mapObfuscatedTypeName(typeName))
+    case _ => None
+  }
+
+  private def mapObfuscatedTypeName(raw: String): PropertyType = raw.trim.toUpperCase.replaceAll("\\s+", " ") match {
+    case "STRING" => StringType
+    case "INTEGER" | "NUMBER" => IntegerType
+    case "FLOAT" | "DOUBLE" => FloatType
+    case "BOOLEAN" => BooleanType
+    case "DATE" => DateType
+    case "TIME" | "LOCAL TIME" | "LOCALTIME" | "ZONED TIME" | "ZONEDTIME" => ZonedTimeType
+    case "DATETIME" | "LOCAL DATETIME" | "LOCALDATETIME" | "ZONED DATETIME" | "ZONEDDATETIME" => ZonedDateTimeType
+    case "DURATION" => DurationType
+    case "POINT" => PointType
+    case "LIST" => ListType
+    case "VECTOR" => VectorType
+    case "UUID" => UUIDType
+    case _ => UnknownType
   }
 
   private def mapCypherTypeToPropertyType(ct: CypherType): PropertyType = {
@@ -709,6 +737,7 @@ object CypherAstSchemaCollector {
     else if (ct.toClassString == "List<Boolean>") ListType
     else if (ct.toClassString == "List<Point>") ListType
     else if (ct.toClassString == "Vector") VectorType
+    else if (ct.toClassString == "UUID") UUIDType
     //date function are not in the registry, so the below is not necessary
     //    else if (ct.toClassString == "xxxx") DateType
     //    else if (ct.toClassString == "xxxx") LocalTimeType
@@ -771,6 +800,7 @@ object CypherAstSchemaCollector {
         case PointType  => "Point"
         case ListType    => "List"
         case VectorType    => "Vector"
+        case UUIDType     => "UUID"
         case UnknownType => "UNKNOWN"
       }.getOrElse("UNKNOWN")
     )

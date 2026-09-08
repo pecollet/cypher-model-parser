@@ -351,6 +351,10 @@ public class GraphCountsParser {
                 return "Point";
             case "LIST":
                 return "List";
+            case "UUID": 
+                return "UUID";
+            case "VECTOR":
+                return "Vector";
             default:
                 if (neo4jType.length() > 0) {
                     return neo4jType.substring(0, 1).toUpperCase() + neo4jType.substring(1).toLowerCase();

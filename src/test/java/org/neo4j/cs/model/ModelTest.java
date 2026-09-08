@@ -198,6 +198,17 @@ public class ModelTest {
         assertTrue(nameProp.getConstraintTypes().contains("PropertyType"));
         assertTrue(nameProp.getConstraintTypes().contains("Existence"));
 
+        Property uuidProp = person.getProperties().stream().filter(p -> "uuid".equals(p.getKey())).findFirst().orElse(null);
+        assertNotNull(uuidProp);
+        assertEquals("UUID", uuidProp.getType());
+        assertTrue(uuidProp.getConstraintTypes().contains("PropertyType"));
+
+        RelationshipType loves = model.getRelationshipTypes().get("LOVES");
+        Property eventId = loves.getProperties().stream().filter(p -> "eventId".equals(p.getKey())).findFirst().orElse(null);
+        assertNotNull(eventId);
+        assertEquals("UUID", eventId.getType());
+        assertTrue(eventId.getConstraintTypes().contains("PropertyType"));
+
         NodeLabel city = model.getNodeLabels().get("City");
         Property cityNameProp = city.getProperties().stream().filter(p -> "name".equals(p.getKey())).findFirst().orElse(null);
         assertNotNull(cityNameProp);

@@ -18,6 +18,12 @@ public class PropertyTest {
     }
 
     @Test
+    void shouldExportCorrectPlantUmlWithUuidType() {
+        Property p = new Property("uuid", "UUID");
+        assertEquals("<&code> uuid", p.asPlantUml());
+    }
+
+    @Test
     void shouldExportCorrectPlantUmlWithListType() {
         Property p = new Property("names", "List");
         assertEquals(p.asPlantUml(), "<&list> names");
