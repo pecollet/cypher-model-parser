@@ -30,9 +30,14 @@ jobs:
       #   env:
       #     GITHUB_TOKEN: ${{ github.token }}
 
+      # - name: Upload the artifacts
+      #   uses: skx/github-action-publish-binaries@master
+      #   env:
+      #     GITHUB_TOKEN: ${{ github.token }}
+      #   with:
+      #     args: '/github/workspace/target/cypher-model-parser-*.jar'
       - name: Upload the artifacts
-        uses: skx/github-action-publish-binaries@master
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        with:
-          args: '/github/workspace/target/cypher-model-parser-*.jar'
+        run: |
+          gh release upload "${{ github.ref_name }}" ./target/cypher-model-parser-*.jar --clobber
