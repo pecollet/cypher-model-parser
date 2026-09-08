@@ -198,6 +198,26 @@
           ]
         },
         {
+          "propertyTypes": [
+            "UUID"
+          ],
+          "label": "Person",
+          "type": "Property type constraint",
+          "properties": [
+            "uuid"
+          ]
+        },
+        {
+          "propertyTypes": [
+            "UUID"
+          ],
+          "relationshipType": "LOVES",
+          "type": "Property type constraint",
+          "properties": [
+            "eventId"
+          ]
+        },
+        {
           "enforcedLabel": "Animal",
           "label": "Pet",
           "type": "Node label existence constraint",
