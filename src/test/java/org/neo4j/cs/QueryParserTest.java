@@ -770,4 +770,21 @@ public class QueryParserTest {
         assertEquals(Set.of("LINK"), m.getRelationshipTypes().keySet());
         assertEquals(Set.of("B"), m.getRelationshipTypes().get("LINK").getSourceNodeLabels());
     }
+
+    @Test
+    void shouldInferUuidPropertyType() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:Thing) SET n.uuid = uuid()");
+        assertEquals(Set.of("Thing"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("uuid", "UUID")), m.getNodeLabels().get("Thing").getProperties());
+    }
+
+    @Test
+    void shouldInferUuidPropertyType2() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:Thing) WHERE uuid.leastSignificantBits(n.uuid) = $x AND uuid.mostSignificantBits(n.uuid2) = $y  RETURN *");
+        assertEquals(Set.of("Thing"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("uuid", "UUID"), new Property("uuid2", "UUID")
+                ), m.getNodeLabels().get("Thing").getProperties());
+    }
 }
