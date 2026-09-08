@@ -766,16 +766,26 @@ object CypherAstSchemaCollector {
           case "localtime"|"localtime.realtime"|"localtime.statement"|"localtime.transaction"|"localtime.truncate" => Some(LocalTimeType)
           case "duration"|"duration.between"|"duration.inDays"|"duration.inMonths"|"duration.inSeconds" => Some(DurationType)
           //int returned
-          case "apoc.coll.indexOf"|"apoc.text.distance" => Some(IntegerType)
+          case "apoc.coll.indexOf"|"apoc.text.distance"|"apoc.bitwise.op"|"apoc.coll.avg"|"apoc.text.hammingDistance"
+               |"apoc.number.parseInt"|"apoc.number.romanToArabic"|"apoc.text.byteCount"|"apoc.text.charAt" => Some(IntegerType)
+          //boolean returned
+          case "apoc.coll.contains"|"apoc.coll.containsAll"|"apoc.coll.containsAllSorted"|"apoc.label.exists"
+               |"apoc.coll.containsDuplicates"|"apoc.coll.containsSorted"|"apoc.coll.different"
+               |"apoc.text.compareCleaned"|"apoc.text.fuzzyMatch" => Some(BooleanType)
           //string returned
           case "db.nameFromElementId"
                |"apoc.util.sha1" | "apoc.util.sha256"| "apoc.util.sha384"| "apoc.util.sha512"
                |"apoc.util.md5" | "apoc.text.camelCase" | "apoc.text.base64Decode" | "apoc.text.base64Encode"
-               |"apoc.text.urlencode" | "apoc.text.urldecode"  => Some(StringType)
+               |"apoc.text.base64UrlDecode"|"apoc.text.base64UrlEncode"
+               |"apoc.text.urlencode" | "apoc.text.urldecode" | "apoc.create.uuid" |"apoc.convert.toJson"
+               |"apoc.number.arabicToRoman"|"apoc.number.format"|"apoc.text.capitalize"|"apoc.text.capitalizeAll"
+               |"apoc.text.decapitalize"|"apoc.text.decapitalizeAll"|"apoc.text.doubleMetaphone"
+               |"apoc.text.clean"|"apoc.text.code" => Some(StringType)
           //list returned
-          case "graph.names"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"
+          case "graph.names"|"apoc.coll.fill"|"apoc.coll.flatten"|"apoc.coll.frequencies"|"apoc.coll.disjunction"
                |"apoc.coll.insert" | "apoc.coll.randomItems" | "apoc.coll.set" | "apoc.coll.sort" | "apoc.coll.toSet"
-               |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" => Some(ListType)
+               |"apoc.coll.union" | "apoc.coll.unionAll" | "apoc.coll.zip" |"apoc.coll.duplicates"
+                |"apoc.convert.fromJsonList"|"apoc.text.bytes" => Some(ListType)
           case _ =>
             None
         }

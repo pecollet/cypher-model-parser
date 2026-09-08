@@ -774,10 +774,20 @@ public class QueryParserTest {
     @Test
     void shouldInferUuidPropertyType() {
         var p = new QueryParser();
-        Model m = p.parseQuery("MATCH (n:Thing) SET n.uuid = uuid()");
-        assertEquals(Set.of("Thing"), m.getNodeLabels().keySet());
+        Model m = p.parseQuery("MATCH (n:Thing) SET n.uuid = uuid() CREATE (:Other {uuid: uuid() })");
+        assertEquals(Set.of("Thing", "Other"), m.getNodeLabels().keySet());
         assertEquals(Set.of( new Property("uuid", "UUID")), m.getNodeLabels().get("Thing").getProperties());
+        assertEquals(Set.of( new Property("uuid", "UUID")), m.getNodeLabels().get("Other").getProperties());
     }
+
+    @Test
+    void shouldInferApocUuidPropertyType() {
+        var p = new QueryParser();
+        Model m = p.parseQuery("MATCH (n:Thing) SET n.uuid = apoc.create.uuid()");
+        assertEquals(Set.of("Thing"), m.getNodeLabels().keySet());
+        assertEquals(Set.of( new Property("uuid", "String")), m.getNodeLabels().get("Thing").getProperties());
+    }
+    
 
     @Test
     void shouldInferUuidPropertyType2() {
